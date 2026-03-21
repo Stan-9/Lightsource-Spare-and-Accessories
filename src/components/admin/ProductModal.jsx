@@ -26,7 +26,7 @@ const ProductModal = ({ isOpen, onClose, product = null }) => {
       });
       setImagePreview(product.imageUrl || null);
     } else {
-      setFormData({ name: '', category: '', price: '', stock: '', description: '' });
+      setFormData({ name: '', category: '', price: '', stock: '', description: '', imageUrl: '' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -38,7 +38,16 @@ const ProductModal = ({ isOpen, onClose, product = null }) => {
       setImageFile(file);
       // create preview url
       setImagePreview(URL.createObjectURL(file));
+      // clear the manual image URL when a file is picked
+      setFormData(prev => ({ ...prev, imageUrl: '' }));
     }
+  };
+
+  const handleImageUrlChange = (e) => {
+    const url = e.target.value;
+    setFormData(prev => ({ ...prev, imageUrl: url }));
+    setImagePreview(url || null);
+    setImageFile(null); // clear file when URL is manually entered
   };
 
   const handleSubmit = async (e) => {
@@ -50,19 +59,22 @@ const ProductModal = ({ isOpen, onClose, product = null }) => {
 
     setLoading(true);
     try {
+      // Use the manual URL if provided, otherwise the file will be uploaded
+      const finalFormData = { ...formData };
+      
       if (product) {
         // Edit mode
-        await updateProduct(product.id, product, formData, imageFile);
+        await updateProduct(product.id, product, finalFormData, imageFile);
         toast.success("Product updated successfully");
       } else {
         // Add mode
-        await addProduct(formData, imageFile);
+        await addProduct(finalFormData, imageFile);
         toast.success("Product added successfully");
       }
       onClose();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save product");
+      toast.error(error.message || "Failed to save product");
     } finally {
       setLoading(false);
     }
@@ -88,8 +100,9 @@ const ProductModal = ({ isOpen, onClose, product = null }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Image Upload Area */}
-            <div className="w-full md:w-1/3 space-y-2">
+            <div className="w-full md:w-1/3 space-y-3">
               <label className="block text-sm font-medium text-gray-400">Product Image</label>
+              
               <div 
                 className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center overflow-hidden h-48 relative transition ${
                   imagePreview ? 'border-gray-700 bg-gray-900' : 'border-gray-700 hover:border-accentOrange/50 bg-gray-800/50'
@@ -114,6 +127,19 @@ const ProductModal = ({ isOpen, onClose, product = null }) => {
                   accept="image/*"
                   onChange={handleImageChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <span className="text-xs text-gray-500 uppercase font-bold">OR</span>
+                </div>
+                <input 
+                  type="text"
+                  placeholder="Paste Image URL here..."
+                  value={formData.imageUrl || ''}
+                  onChange={handleImageUrlChange}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-xs text-white focus:outline-none focus:border-accentOrange transition"
                 />
               </div>
             </div>

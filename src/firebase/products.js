@@ -34,19 +34,20 @@ export const subscribeProducts = (callback) => {
 
 export const addProduct = async (productData, imageFile) => {
   try {
-    let imageUrl = '';
+    // Current imageUrl could be one manually pasted in the form
+    let imageUrl = productData.imageUrl || '';
     
-    // Attempt upload if file provided
+    // Attempt upload if file provided - this takes precedence
     if (imageFile) {
       imageUrl = await uploadProductImage(imageFile);
     }
     
-    // Ensure numbers are correct types
+    // Ensure numbers are correct types and prepare full product object
     const newProduct = {
       ...productData,
       price: Number(productData.price),
       stock: Number(productData.stock),
-      imageUrl,
+      imageUrl, // Uses either uploaded URL or manual URL
       createdAt: serverTimestamp()
     };
     
@@ -60,12 +61,13 @@ export const addProduct = async (productData, imageFile) => {
 export const updateProduct = async (id, currentData, updatedData, newImageFile = null) => {
   try {
     const productRef = doc(db, 'products', id);
-    let imageUrl = currentData.imageUrl;
+    // Prefer the manual URL if it was changed in form, otherwise keep current
+    let imageUrl = updatedData.imageUrl || currentData.imageUrl || '';
     
     if (newImageFile) {
-      // Assuming new upload, overwrite old image
+      // Pick file upload if a new file was selected
       imageUrl = await uploadProductImage(newImageFile);
-      // Clean up old image if there was one
+      // Clean up old image if there was one (logic remains same for Firebase or can be extension later)
       if (currentData.imageUrl) {
         await deleteProductImage(currentData.imageUrl);
       }

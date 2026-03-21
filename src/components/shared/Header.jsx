@@ -2,7 +2,7 @@ import { ShoppingCart } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 
 const Header = ({ shopName }) => {
-  const { totalItems, toggleDrawer } = useCart();
+  const { totalItems, grandTotal, toggleDrawer } = useCart();
 
   return (
     <header className="sticky top-0 z-40 bg-darkBg/95 backdrop-blur-sm border-b border-gray-800">
@@ -19,14 +19,23 @@ const Header = ({ shopName }) => {
 
         <button 
           onClick={toggleDrawer}
-          className="relative p-2 rounded-full hover:bg-gray-800 transition-colors flex items-center justify-center focus:outline-none"
+          className="relative group p-2 rounded-xl flex items-center justify-center focus:outline-none transition-all duration-300 hover:bg-gray-800/80 active:scale-95 border border-transparent hover:border-gray-700"
         >
-          <ShoppingCart className="w-6 h-6 text-white" />
-          {totalItems > 0 && (
-            <span className="absolute top-0 right-0 bg-accentOrange text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_8px_rgba(255,107,0,0.8)] border-2 border-darkBg translate-x-1 -translate-y-1">
-              {totalItems}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {totalItems > 0 && (
+              <span className="hidden md:block text-xs font-semibold text-gray-400">
+                KES {grandTotal.toLocaleString()}
+              </span>
+            )}
+            <div className="relative">
+              <ShoppingCart className="w-6 h-6 text-white transition-transform group-hover:-rotate-6" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2.5 -right-2.5 bg-accentOrange text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_12px_rgba(255,107,0,0.6)] border-2 border-darkBg animate-in zoom-in duration-300">
+                  {totalItems}
+                </span>
+              )}
+            </div>
+          </div>
         </button>
       </div>
     </header>

@@ -150,3 +150,69 @@ export const subscribeSettings = (callback) => {
     console.error("Error subscribing to settings: ", error);
   });
 };
+
+// --- Orders ---
+
+const ordersDoc = collection(db, 'orders');
+
+export const logOrder = async (orderData) => {
+  try {
+    const newOrder = {
+      ...orderData,
+      createdAt: serverTimestamp(),
+      status: 'pending' // Initial status for record keeping
+    };
+    await addDoc(ordersDoc, newOrder);
+  } catch (error) {
+    console.error("Error logging order: ", error);
+  }
+};
+
+export const subscribeOrders = (callback) => {
+  const q = query(ordersDoc, orderBy('createdAt', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    callback(orders);
+  }, (error) => {
+    console.error("Error fetching orders: ", error);
+    callback([]);
+  });
+};
+
+// --- Categories ---
+
+export const getCategories = async () => {
+  try {
+    const snapshot = await getDoc(doc(db, 'settings', 'categories'));
+    if (snapshot.exists()) {
+      return snapshot.data().list || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error fetching categories: ", error);
+    return [];
+  }
+};
+
+export const updateCategoriesList = async (list) => {
+  try {
+    await setDoc(doc(db, 'settings', 'categories'), { list });
+  } catch (error) {
+    console.log("Error updating categories list: ", error);
+    throw error;
+  }
+};
+
+export const subscribeCategories = (callback) => {
+  return onSnapshot(doc(db, 'settings', 'categories'), (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.data().list || []);
+    } else {
+      callback([]);
+    }
+  });
+};

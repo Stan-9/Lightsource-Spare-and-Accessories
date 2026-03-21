@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 const CartContext = createContext();
@@ -8,8 +8,21 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lightsource_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Cart retrieval failed", e);
+      return [];
+    }
+  });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Save to localStorage whenever cartItems changes
+  useEffect(() => {
+    localStorage.setItem('lightsource_cart', JSON.stringify(cartItems));
+  }, [cartItems]);
 
   // Add item to cart
   const addToCart = (product) => {

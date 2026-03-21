@@ -4,7 +4,10 @@ import {
   deleteProduct, 
   updateProductStock, 
   getSettings, 
-  updateSettings 
+  updateSettings,
+  subscribeOrders,
+  subscribeCategories,
+  updateCategoriesList
 } from '../firebase/products';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
@@ -20,13 +23,21 @@ import {
   Trash2, 
   TrendingUp, 
   TrendingDown,
-  LayoutDashboard 
+  LayoutDashboard,
+  ShoppingCart,
+  Tags,
+  AlertCircle,
+  Clock,
+  ChevronRight,
+  MoreVertical
 } from 'lucide-react';
 import ProductModal from '../components/admin/ProductModal';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview'); // overview, products, settings
+  const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, settings
   const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [settingsData, setSettingsData] = useState({ shopName: '', whatsappNumber: '' });
   
@@ -34,6 +45,9 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+
+  // Categories State
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const navigate = useNavigate();
 
@@ -43,13 +57,25 @@ const AdminDashboard = () => {
       setLoading(false);
     });
 
+    const unsubOrders = subscribeOrders((data) => {
+      setOrders(data);
+    });
+
+    const unsubCategories = subscribeCategories((data) => {
+      setCategories(data);
+    });
+
     const loadSettings = async () => {
       const data = await getSettings();
       setSettingsData(data);
     };
     loadSettings();
 
-    return () => unsubProducts();
+    return () => {
+      unsubProducts();
+      unsubOrders();
+      unsubCategories();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -102,14 +128,44 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    if (categories.includes(newCategoryName.trim())) {
+      toast.error("Category already exists");
+      return;
+    }
+    const newList = [...categories, newCategoryName.trim()];
+    try {
+      await updateCategoriesList(newList);
+      setNewCategoryName('');
+      toast.success("Category added");
+    } catch (e) {
+      toast.error("Failed to add category");
+    }
+  };
+
+  const handleDeleteCategory = async (name) => {
+    if (window.confirm(`Remove category "${name}"? Existing products will still keep this category until updated.`)) {
+      const newList = categories.filter(c => c !== name);
+      try {
+        await updateCategoriesList(newList);
+        toast.success("Category removed");
+      } catch (e) {
+        toast.error("Failed to remove category");
+      }
+    }
+  };
+
   // Derived state
   const stats = useMemo(() => {
     const total = products.length;
     const inStock = products.filter(p => p.stock > 0).length;
     const outOfStock = products.filter(p => p.stock <= 0).length;
-    const uniqueCats = new Set(products.map(p => p.category)).size;
+    const lowStock = products.filter(p => p.stock > 0 && p.stock < 5).length;
+    const inventoryValue = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
 
-    return { total, inStock, outOfStock, categories: uniqueCats };
+    return { total, inStock, outOfStock, lowStock, totalValue: inventoryValue };
   }, [products]);
 
   const filteredProducts = useMemo(() => {
@@ -117,17 +173,24 @@ const AdminDashboard = () => {
   }, [products, searchQuery]);
 
 
-  const NavButton = ({ id, icon: Icon, label }) => (
+  const NavButton = ({ id, icon: Icon, label, badge = null }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
+      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium group ${
         activeTab === id 
           ? 'bg-accentOrange/10 text-accentOrange shadow-[inset_2px_0_0_0_#FF6B00]' 
           : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
       }`}
     >
-      <Icon className={`w-5 h-5 ${activeTab === id ? 'text-accentOrange' : ''}`} />
-      {label}
+      <div className="flex items-center gap-3">
+        <Icon className={`w-5 h-5 ${activeTab === id ? 'text-accentOrange' : 'group-hover:text-gray-200'}`} />
+        {label}
+      </div>
+      {badge && (
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activeTab === id ? 'bg-accentOrange text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
+          {badge}
+        </span>
+      )}
     </button>
   );
 
@@ -139,25 +202,26 @@ const AdminDashboard = () => {
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 rounded-xl bg-accentOrange flex items-center justify-center font-bold text-white shadow-lg shadow-accentOrange/30">
-              A
+              L
             </div>
             <div>
-              <h1 className="font-bold text-lg text-white leading-tight">Admin</h1>
-              <p className="text-xs text-gray-400 font-medium tracking-wide">Dashboard</p>
+              <h1 className="font-bold text-lg text-white leading-tight">LightSource</h1>
+              <p className="text-xs text-gray-400 font-medium tracking-wide italic">Admin Panel</p>
             </div>
           </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <NavButton id="overview" icon={LayoutDashboard} label="Overview" />
-          <NavButton id="products" icon={Package} label="Products" />
+          <NavButton id="products" icon={Package} label="Inventory" badge={products.length} />
+          <NavButton id="orders" icon={ShoppingCart} label="Orders Log" badge={orders.length} />
           <NavButton id="settings" icon={Settings} label="Settings" />
         </nav>
 
         <div className="p-4 border-t border-gray-800 bg-gray-900/50">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-400 hover:bg-red-400/10 hover:text-red-300 transition font-medium border border-red-400/20"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/10 hover:text-red-400 transition font-black uppercase text-[10px] tracking-widest border border-red-500/20"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -171,50 +235,121 @@ const AdminDashboard = () => {
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Store Overview</h2>
+            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4 flex items-center gap-3">
+              Store Statistics
+              <LayoutDashboard className="w-6 h-6 text-accentOrange opacity-50" />
+            </h2>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              {[
-                { label: 'Total Products', value: stats.total, icon: Package, color: 'text-blue-500' },
-                { label: 'In Stock', value: stats.inStock, icon: TrendingUp, color: 'text-green-500' },
-                { label: 'Out of Stock', value: stats.outOfStock, icon: TrendingDown, color: 'text-red-500' },
-                { label: 'Categories', value: stats.categories, icon: LayoutDashboard, color: 'text-purple-500' },
-              ].map((stat, i) => (
-                <div key={i} className="bg-gray-900 border border-gray-800 p-6 rounded-2xl relative overflow-hidden group hover:border-accentOrange/30 transition-all">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-current opacity-[0.03] rotate-12 -mr-6 -mt-6 group-hover:scale-125 transition-transform duration-500" />
-                  <div className={`w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center mb-4 ${stat.color}`}>
-                    <stat.icon className="w-6 h-6" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+              <div className="col-span-1 lg:col-span-3 bg-gradient-to-r from-accentOrange/20 to-transparent border border-accentOrange/30 p-8 rounded-3xl relative overflow-hidden">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <span className="text-accentOrange font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Available Inventory</span>
+                    <h3 className="text-4xl md:text-5xl font-black text-white tracking-tighter">
+                      <span className="text-accentOrange text-xl mr-2 font-medium italic">KES</span>
+                      {stats.totalValue.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-400 mt-2 text-sm font-medium">Estimated total value of all items currently in stock</p>
                   </div>
-                  <h3 className="text-3xl font-black text-white mb-1 tracking-tight">{stat.value}</h3>
-                  <p className="text-sm text-gray-400 font-medium">{stat.label}</p>
+                  <div className="flex gap-4">
+                    <div className="bg-black/30 backdrop-blur px-6 py-4 rounded-2xl border border-white/5">
+                      <span className="text-gray-500 text-[10px] font-black uppercase block mb-1">Items</span>
+                      <span className="text-2xl font-black text-white">{stats.total}</span>
+                    </div>
+                    <div className="bg-black/30 backdrop-blur px-6 py-4 rounded-2xl border border-white/5">
+                      <span className="text-gray-500 text-[10px] font-black uppercase block mb-1">Categories</span>
+                      <span className="text-2xl font-black text-white">{categories.length}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute -right-10 -bottom-10 opacity-5">
+                  <Package className="w-64 h-64 rotate-12" />
+                </div>
+              </div>
+
+              {[
+                { label: 'Healthy Stock', value: stats.inStock - stats.lowStock, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
+                { label: 'Low Stock Level', value: stats.lowStock, icon: AlertCircle, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+                { label: 'Out of Stock', value: stats.outOfStock, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
+              ].map((stat, i) => (
+                <div key={i} className="bg-gray-900 border border-gray-800 p-6 rounded-2xl relative overflow-hidden group hover:border-gray-700 transition-all shadow-lg">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center shrink-0`}>
+                      <stat.icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-white tabular-nums">{stat.value}</h3>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{stat.label}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Recent Additions</h3>
-              {loading ? (
-                <div className="animate-pulse space-y-4">
-                  {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-800 rounded-xl" />)}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-accentOrange" />
+                    Latest Orders
+                  </h3>
+                  <button onClick={() => setActiveTab('orders')} className="text-accentOrange text-xs font-black uppercase tracking-widest hover:underline">View All</button>
                 </div>
-              ) : (
+                {loading ? (
+                  <div className="animate-pulse space-y-4">
+                    {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-800 rounded-xl" />)}
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-10 opacity-30 italic text-sm">No orders logged yet</div>
+                ) : (
+                  <div className="space-y-4">
+                    {orders.slice(0, 4).map(order => (
+                      <div key={order.id} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-800/30 border border-white/5 hover:border-white/10 transition-colors group">
+                        <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 group-hover:bg-accentOrange group-hover:text-white transition-colors">
+                          <ShoppingCart className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-400 font-bold">{new Date(order.createdAt?.toDate()).toLocaleDateString()}</p>
+                          <h4 className="text-sm font-bold text-white truncate">{order.items.length} items ordered</h4>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-white italic">KES {order.total.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-yellow-500" />
+                    Low Stock Alert
+                  </h3>
+                </div>
                 <div className="space-y-4">
-                   {products.slice(0, 5).map(p => (
-                     <div key={p.id} className="flex items-center gap-4 p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
-                       <div className="w-12 h-12 rounded-lg bg-gray-900 overflow-hidden shrink-0">
-                         {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <h4 className="text-sm font-bold text-white truncate">{p.name}</h4>
-                         <p className="text-xs text-accentOrange mt-1">KES {p.price.toLocaleString()}</p>
-                       </div>
-                       <div className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${p.stock > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                         {p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}
-                       </div>
-                     </div>
-                   ))}
+                  {products.filter(p => p.stock > 0 && p.stock < 5).slice(0, 4).map(p => (
+                    <div key={p.id} className="flex items-center gap-4 p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10">
+                      <div className="w-10 h-10 rounded-xl bg-gray-900 overflow-hidden shrink-0">
+                        {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-white truncate">{p.name}</h4>
+                        <div className={`text-[10px] font-black uppercase mt-1 text-yellow-500`}>
+                           Only {p.stock} units left
+                        </div>
+                      </div>
+                      <button onClick={() => handleEditProduct(p)} className="p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {products.filter(p => p.stock > 0 && p.stock < 5).length === 0 && (
+                    <div className="text-center py-10 opacity-30 italic text-sm">Inventory levels are healthy</div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -277,19 +412,27 @@ const AdminDashboard = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredProducts.map((p) => (
-                        <tr key={p.id} className="hover:bg-gray-800/30 transition group">
+                       filteredProducts.map((p) => (
+                        <tr key={p.id} className={`transition group border-b border-gray-800/40 hover:bg-gray-800/30 ${p.stock > 0 && p.stock < 5 ? 'bg-red-500/5' : ''}`}>
                           <td className="p-4">
-                            <div className="w-12 h-12 rounded-lg bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex items-center justify-center relative">
                               {p.imageUrl ? (
                                 <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
                               ) : (
                                 <span className="text-[10px] text-gray-500">No img</span>
                               )}
+                              {p.stock > 0 && p.stock < 5 && (
+                                <div className="absolute top-0 right-0 p-0.5 bg-red-500 rounded-bl-lg animate-pulse">
+                                  <AlertCircle className="w-3 h-3 text-white" />
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td className="p-4 font-medium text-white">
                             <div className="line-clamp-2">{p.name}</div>
+                            {p.stock > 0 && p.stock < 5 && (
+                              <span className="text-[10px] text-red-400 font-black uppercase tracking-widest mt-1 block">Low Stock</span>
+                            )}
                           </td>
                           <td className="p-4">
                             <span className="bg-gray-800 text-gray-300 px-3 py-1 rounded-md text-sm border border-gray-700">
@@ -300,14 +443,14 @@ const AdminDashboard = () => {
                             KES {p.price.toLocaleString()}
                           </td>
                           <td className="p-4">
-                            <div className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-lg p-1 w-max">
+                            <div className={`flex items-center gap-2 border rounded-lg p-1 w-max transition-colors ${p.stock > 0 && p.stock < 5 ? 'bg-red-500/10 border-red-500/30' : 'bg-gray-900 border-gray-700'}`}>
                               <button 
                                 onClick={() => handleStockUpdate(p.id, p.stock, -1)}
                                 className="w-7 h-7 flex items-center justify-center rounded bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 transition"
                               >
                                 -
                               </button>
-                              <span className={`w-8 text-center font-bold text-sm ${p.stock <= 0 ? 'text-red-500' : 'text-white'}`}>
+                              <span className={`w-8 text-center font-bold text-sm ${p.stock <= 0 ? 'text-red-500' : p.stock < 5 ? 'text-red-400' : 'text-white'}`}>
                                 {p.stock}
                               </span>
                               <button 
@@ -346,7 +489,65 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* SETTINGS TAB */}
+        {/* ORDERS LOG TAB */}
+        {activeTab === 'orders' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-80px)]">
+            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Customer Orders Log</h2>
+            
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
+              <div className="overflow-x-auto flex-1 h-0">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
+                    <tr>
+                      <th className="p-4">Time</th>
+                      <th className="p-4">Items</th>
+                      <th className="p-4">Grand Total</th>
+                      <th className="p-4">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/50">
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="p-12 text-center text-gray-500 italic">
+                          No order attempts recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-800/30 transition group">
+                          <td className="p-4">
+                            <div className="flex flex-col">
+                              <span className="text-white font-bold">{new Date(order.createdAt?.toDate()).toLocaleDateString()}</span>
+                              <span className="text-xs text-gray-500">{new Date(order.createdAt?.toDate()).toLocaleTimeString()}</span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="space-y-1">
+                              {order.items.map((item, idx) => (
+                                <div key={idx} className="text-xs text-gray-300">
+                                  <span className="text-accentOrange font-bold">{item.quantity}x</span> {item.name}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-black text-white italic">KES {order.total.toLocaleString()}</span>
+                          </td>
+                          <td className="p-4">
+                             <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500/50">
+                               <Clock className="w-3 h-3" />
+                               Redirected
+                             </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'settings' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl">
             <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Store Settings</h2>
@@ -381,6 +582,46 @@ const AdminDashboard = () => {
               </div>
 
               <div className="pt-6 mt-6 border-t border-gray-800">
+                <label className="block text-sm font-medium text-gray-400 mb-4 flex items-center gap-2">
+                  <Tags className="w-4 h-4 text-accentOrange" />
+                  Product Categories
+                </label>
+                
+                <div className="flex flex-wrap gap-2 mb-6 min-h-12 bg-black/20 p-4 rounded-2xl border border-white/5">
+                  {categories.map((cat, i) => (
+                    <div key={i} className="group flex items-center gap-2 bg-gray-800 text-white px-4 py-1.5 rounded-full text-xs font-bold border border-gray-700 hover:border-accentOrange/50 transition-colors">
+                      {cat}
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteCategory(cat)}
+                        className="text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {categories.length === 0 && <span className="text-gray-600 text-xs italic">No custom categories yet. Add some below!</span>}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="New category name..."
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-accentOrange/50 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    className="px-6 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700 border border-gray-700 transition"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-6 mt-6 border-t border-gray-800">
                 <button
                   type="submit"
                   className="bg-accentOrange hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-accentOrange/20 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
@@ -400,6 +641,7 @@ const AdminDashboard = () => {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         product={editingProduct}
+        categories={categories}
       />
     </div>
   );

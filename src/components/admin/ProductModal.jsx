@@ -3,7 +3,7 @@ import { X, Upload, Save } from 'lucide-react';
 import { addProduct, updateProduct } from '../../firebase/products';
 import toast from 'react-hot-toast';
 
-const ProductModal = ({ isOpen, onClose, product = null }) => {
+const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -161,14 +161,20 @@ const ProductModal = ({ isOpen, onClose, product = null }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Category *</label>
-                  <input 
-                    type="text" 
+                  <select 
                     value={formData.category}
                     onChange={e => setFormData({...formData, category: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition"
-                    placeholder="e.g. Brakes"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition appearance-none"
                     required
-                  />
+                  >
+                    <option value="" disabled>Select Category</option>
+                    {categories.map((cat, i) => (
+                      <option key={i} value={cat}>{cat}</option>
+                    ))}
+                    {categories.length === 0 && (
+                      <option disabled>No categories found. Add them in Settings!</option>
+                    )}
+                  </select>
                 </div>
                 
                 <div>

@@ -8,6 +8,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
     name: '',
     category: '',
     price: '',
+    buyingPrice: '',
     stock: '',
     description: '',
   });
@@ -21,12 +22,13 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
         name: product.name || '',
         category: product.category || '',
         price: product.price || '',
+        buyingPrice: product.buyingPrice || '',
         stock: product.stock || '',
         description: product.description || '',
       });
       setImagePreview(product.imageUrl || null);
     } else {
-      setFormData({ name: '', category: '', price: '', stock: '', description: '', imageUrl: '' });
+      setFormData({ name: '', category: '', price: '', buyingPrice: '', stock: '', description: '', imageUrl: '' });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -159,7 +161,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-400 mb-1">Category *</label>
                   <select 
                     value={formData.category}
@@ -178,7 +180,20 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Price (KES) *</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Buying Price (Cost) *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={formData.buyingPrice}
+                    onChange={e => setFormData({...formData, buyingPrice: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Selling Price (Retail) *</label>
                   <input 
                     type="number" 
                     min="0"
@@ -189,19 +204,19 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
                     required
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Stock Quantity *</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={formData.stock}
-                  onChange={e => setFormData({...formData, stock: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition"
-                  placeholder="0"
-                  required
-                />
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Stock Quantity *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={formData.stock}
+                    onChange={e => setFormData({...formData, stock: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition"
+                    placeholder="0"
+                    required
+                  />
+                </div>
               </div>
             </div>
           </div>

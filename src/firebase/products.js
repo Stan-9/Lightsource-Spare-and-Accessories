@@ -46,6 +46,7 @@ export const addProduct = async (productData, imageFile) => {
     const newProduct = {
       ...productData,
       price: Number(productData.price),
+      buyingPrice: Number(productData.buyingPrice || 0),
       stock: Number(productData.stock),
       imageUrl, // Uses either uploaded URL or manual URL
       createdAt: serverTimestamp()
@@ -76,6 +77,7 @@ export const updateProduct = async (id, currentData, updatedData, newImageFile =
     await updateDoc(productRef, {
       ...updatedData,
       price: Number(updatedData.price),
+      buyingPrice: Number(updatedData.buyingPrice || 0),
       stock: Number(updatedData.stock),
       imageUrl
     });
@@ -160,7 +162,9 @@ export const logOrder = async (orderData) => {
     const newOrder = {
       ...orderData,
       createdAt: serverTimestamp(),
-      status: 'pending' // Initial status for record keeping
+      status: 'pending', // Initial status for record keeping: pending, completed, cancelled
+      paymentType: orderData.paymentType || 'Cash', // Cash, Credit
+      paymentStatus: orderData.paymentStatus || 'Paid' // Paid, Unpaid
     };
     await addDoc(ordersDoc, newOrder);
   } catch (error) {
@@ -181,6 +185,29 @@ export const subscribeOrders = (callback) => {
     console.error("Error fetching orders: ", error);
     callback([]);
   });
+};
+
+export const updateOrderStatus = async (orderId, status) => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, { status });
+  } catch (error) {
+    console.error("Error updating order status: ", error);
+    throw error;
+  }
+};
+
+export const updateOrderPayment = async (orderId, paymentStatus, paymentType) => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, { 
+      paymentStatus,
+      paymentType: paymentType || 'Cash' 
+    });
+  } catch (error) {
+    console.error("Error updating order payment: ", error);
+    throw error;
+  }
 };
 
 // --- Categories ---

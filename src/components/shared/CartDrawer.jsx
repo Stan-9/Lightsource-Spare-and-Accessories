@@ -1,4 +1,5 @@
-import { X, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Plus, Minus, Trash2, ShoppingCart, User } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import toast from 'react-hot-toast';
 
@@ -14,6 +15,8 @@ const CartDrawer = ({ whatsappNumber }) => {
     grandTotal 
   } = useCart();
 
+  const [customerName, setCustomerName] = useState('');
+
   const handleWhatsAppCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error('Cart is empty!');
@@ -27,6 +30,7 @@ const CartDrawer = ({ whatsappNumber }) => {
 
     // Prepare order data for Firestore
     const orderData = {
+      customerName: customerName || 'WhatsApp Customer',
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -172,23 +176,38 @@ const CartDrawer = ({ whatsappNumber }) => {
 
         {cartItems.length > 0 && (
           <div className="p-6 border-t border-gray-800 bg-gray-900 shadow-[0_-20px_40px_rgba(0,0,0,0.4)] relative z-10">
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between items-center text-gray-400 text-sm">
-                <span>Subtotal ({cartItems.length} items)</span>
-                <span className="font-semibold text-gray-200">KES {grandTotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center text-gray-400 text-sm">
-                <span>Estimated Delivery</span>
-                <span className="text-green-500 font-medium">Quote on Whatsapp</span>
-              </div>
-              <div className="h-px bg-gray-800 my-2" />
-              <div className="flex justify-between items-end">
-                <div>
-                  <span className="text-[10px] text-gray-500 uppercase font-black block tracking-widest mb-0.5">Total Amount</span>
-                  <span className="text-2xl font-black text-white leading-none">KES {grandTotal.toLocaleString()}</span>
+            <div className="space-y-4 mb-6">
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-accentOrange transition-colors">
+                  <User className="w-4 h-4" />
                 </div>
-                <div className="bg-accentOrange/10 text-accentOrange text-[10px] font-black px-2.5 py-1 rounded-full border border-accentOrange/20 animate-pulse">
-                  SECURE CHECKOUT
+                <input 
+                  type="text"
+                  placeholder="Your Name (for our records)"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full bg-black/40 border border-gray-700 rounded-xl py-3 pl-11 pr-4 text-white text-sm focus:outline-none focus:border-accentOrange/50 focus:ring-1 focus:ring-accentOrange/20 transition-all placeholder:text-gray-600"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-gray-400 text-sm font-medium">
+                  <span>Subtotal ({cartItems.length} items)</span>
+                  <span className="text-gray-200">KES {grandTotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-400 text-sm font-medium">
+                  <span>Estimated Delivery</span>
+                  <span className="text-green-500">Quote on Whatsapp</span>
+                </div>
+                <div className="h-px bg-gray-800 my-1" />
+                <div className="flex justify-between items-end">
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-black block tracking-widest mb-0.5">Total Amount</span>
+                    <span className="text-2xl font-black text-white leading-none">KES {grandTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="bg-accentOrange/10 text-accentOrange text-[10px] font-black px-2.5 py-1 rounded-full border border-accentOrange/20">
+                    SECURE CHECKOUT
+                  </div>
                 </div>
               </div>
             </div>

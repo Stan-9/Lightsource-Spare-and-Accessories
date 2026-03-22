@@ -7,7 +7,9 @@ import {
   updateSettings,
   subscribeOrders,
   subscribeCategories,
-  updateCategoriesList
+  updateCategoriesList,
+  updateOrderStatus,
+  updateOrderPayment
 } from '../firebase/products';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
@@ -34,7 +36,7 @@ import {
 import ProductModal from '../components/admin/ProductModal';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, settings
+  const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, creditors, settings
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -128,6 +130,24 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateOrderStatus = async (orderId, status) => {
+    try {
+      await updateOrderStatus(orderId, status);
+      toast.success(`Order ${status}`);
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleUpdateOrderPayment = async (orderId, paymentStatus, paymentType) => {
+    try {
+      await updateOrderPayment(orderId, paymentStatus, paymentType);
+      toast.success('Payment status updated');
+    } catch (error) {
+      toast.error('Failed to update payment');
+    }
+  };
+
   const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
@@ -157,16 +177,76 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = ["Name", "Category", "Buying Price", "Selling Price", "Stock", "Total Value (Retail)"];
+    const rows = products.map(p => [
+      p.name,
+      p.category,
+      p.buyingPrice || 0,
+      p.price,
+      p.stock,
+      p.price * p.stock
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `LightSource_Inventory_${new Date().toLocaleDateString()}.csv`);
+    a.click();
+    toast.success("Inventory exported!");
+  };
+
   // Derived state
   const stats = useMemo(() => {
     const total = products.length;
     const inStock = products.filter(p => p.stock > 0).length;
     const outOfStock = products.filter(p => p.stock <= 0).length;
     const lowStock = products.filter(p => p.stock > 0 && p.stock < 5).length;
-    const inventoryValue = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
+    
+    // Inventory Valuation
+    const inventoryValueRetail = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
+    const inventoryValueCost = products.reduce((acc, p) => acc + ((p.buyingPrice || 0) * p.stock), 0);
+    const potentialProfit = inventoryValueRetail - inventoryValueCost;
 
-    return { total, inStock, outOfStock, lowStock, totalValue: inventoryValue };
-  }, [products]);
+    // Sales Performance (Only Completed Orders)
+    const completedOrders = orders.filter(o => o.status === 'completed');
+    const actualSales = completedOrders.reduce((acc, o) => acc + o.total, 0);
+    
+    // Profit Calculation (Needs items to have buyingPrice at time of order, for now using current)
+    const actualProfit = completedOrders.reduce((acc, o) => {
+      const orderProfit = o.items.reduce((itemAcc, item) => {
+        const product = products.find(p => p.id === item.id);
+        const cost = product?.buyingPrice || 0;
+        return itemAcc + ((item.price - cost) * (item.quantity || 1));
+      }, 0);
+      return acc + orderProfit;
+    }, 0);
+
+    // Most/Least Sold
+    const itemSales = {};
+    completedOrders.forEach(o => {
+      o.items.forEach(item => {
+        itemSales[item.name] = (itemSales[item.name] || 0) + (item.quantity || 1);
+      });
+    });
+
+    const sortedSales = Object.entries(itemSales).sort((a, b) => b[1] - a[1]);
+    const topPerformer = sortedSales[0] || ["None", 0];
+    const leastPerformer = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1] : ["None", 0];
+
+    return { 
+      total, inStock, outOfStock, lowStock, 
+      totalValue: inventoryValueRetail,
+      inventoryCost: inventoryValueCost,
+      potentialProfit,
+      actualSales,
+      actualProfit,
+      topPerformer,
+      leastPerformer
+    };
+  }, [products, orders]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -215,6 +295,12 @@ const AdminDashboard = () => {
           <NavButton id="overview" icon={LayoutDashboard} label="Overview" />
           <NavButton id="products" icon={Package} label="Inventory" badge={products.length} />
           <NavButton id="orders" icon={ShoppingCart} label="Orders Log" badge={orders.length} />
+          <NavButton 
+            id="creditors" 
+            icon={TrendingDown} 
+            label="Creditors" 
+            badge={orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').length} 
+          />
           <NavButton id="settings" icon={Settings} label="Settings" />
         </nav>
 
@@ -240,37 +326,46 @@ const AdminDashboard = () => {
               <LayoutDashboard className="w-6 h-6 text-accentOrange opacity-50" />
             </h2>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-              <div className="col-span-1 lg:col-span-3 bg-gradient-to-r from-accentOrange/20 to-transparent border border-accentOrange/30 p-8 rounded-3xl relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div>
-                    <span className="text-accentOrange font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Available Inventory</span>
-                    <h3 className="text-4xl md:text-5xl font-black text-white tracking-tighter">
-                      <span className="text-accentOrange text-xl mr-2 font-medium italic">KES</span>
-                      {stats.totalValue.toLocaleString()}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+              <div className="col-span-1 lg:col-span-4 bg-gradient-to-r from-accentOrange/20 to-transparent border border-accentOrange/30 p-8 rounded-3xl relative overflow-hidden">
+                <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                  <div className="md:border-r border-white/10 pr-8">
+                    <span className="text-accentOrange font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Warehouse Value (Cost)</span>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-accentOrange text-lg mr-2 font-medium italic">KES</span>
+                      {stats.inventoryCost.toLocaleString()}
                     </h3>
-                    <p className="text-gray-400 mt-2 text-sm font-medium">Estimated total value of all items currently in stock</p>
+                    <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Total money tied in stock</p>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="bg-black/30 backdrop-blur px-6 py-4 rounded-2xl border border-white/5">
-                      <span className="text-gray-500 text-[10px] font-black uppercase block mb-1">Items</span>
-                      <span className="text-2xl font-black text-white">{stats.total}</span>
-                    </div>
-                    <div className="bg-black/30 backdrop-blur px-6 py-4 rounded-2xl border border-white/5">
-                      <span className="text-gray-500 text-[10px] font-black uppercase block mb-1">Categories</span>
-                      <span className="text-2xl font-black text-white">{categories.length}</span>
-                    </div>
+                  
+                  <div className="md:border-r border-white/10 pr-8">
+                    <span className="text-green-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Projected Potential Profit</span>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
+                      {stats.potentialProfit.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Estimated earnings if all sold</p>
+                  </div>
+
+                  <div>
+                    <span className="text-blue-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Actual Store Profit</span>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-blue-500 text-lg mr-2 font-medium italic">KES</span>
+                      {stats.actualProfit.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">From {orders.filter(o => o.status === 'completed').length} completed sales</p>
                   </div>
                 </div>
                 <div className="absolute -right-10 -bottom-10 opacity-5">
-                  <Package className="w-64 h-64 rotate-12" />
+                  <TrendingUp className="w-64 h-64 rotate-12" />
                 </div>
               </div>
 
               {[
-                { label: 'Healthy Stock', value: stats.inStock - stats.lowStock, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
+                { label: 'Total Revenue', value: stats.actualSales, icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                { label: 'Most Sold Item', value: stats.topPerformer[0], sub: `${stats.topPerformer[1]} units`, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
+                { label: 'Least Sold Item', value: stats.leastPerformer[0], sub: `${stats.leastPerformer[1]} units`, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
                 { label: 'Low Stock Level', value: stats.lowStock, icon: AlertCircle, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-                { label: 'Out of Stock', value: stats.outOfStock, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
               ].map((stat, i) => (
                 <div key={i} className="bg-gray-900 border border-gray-800 p-6 rounded-2xl relative overflow-hidden group hover:border-gray-700 transition-all shadow-lg">
                   <div className="flex items-center gap-4">
@@ -278,8 +373,9 @@ const AdminDashboard = () => {
                       <stat.icon className="w-6 h-6" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black text-white tabular-nums">{stat.value}</h3>
-                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{stat.label}</p>
+                      <h3 className="text-xl font-black text-white tabular-nums truncate max-w-[120px]">{stat.value.toLocaleString()}</h3>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{stat.label}</p>
+                      {stat.sub && <p className="text-[9px] text-gray-600 font-medium italic mt-0.5">{stat.sub}</p>}
                     </div>
                   </div>
                 </div>
@@ -360,13 +456,21 @@ const AdminDashboard = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-3xl font-bold text-white">Inventory Management</h2>
               
-              <button
-                onClick={handleAddProduct}
-                className="bg-accentOrange hover:bg-orange-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-accentOrange/20 transition flex items-center gap-2 transform hover:-translate-y-0.5"
-              >
-                <Plus className="w-5 h-5" />
-                Add Product
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleExportCSV}
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2.5 px-5 rounded-xl border border-gray-700 transition flex items-center gap-2"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={handleAddProduct}
+                  className="bg-accentOrange hover:bg-orange-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-accentOrange/20 transition flex items-center gap-2 transform hover:-translate-y-0.5"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Product
+                </button>
+              </div>
             </div>
 
             <div className="mb-6 relative max-w-md shrink-0">
@@ -385,10 +489,10 @@ const AdminDashboard = () => {
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
                     <tr>
-                      <th className="p-4 w-16">Image</th>
-                      <th className="p-4">Name</th>
-                      <th className="p-4">Category</th>
-                      <th className="p-4">Price</th>
+                      <th className="p-4 w-16 text-center">Image</th>
+                      <th className="p-4">Name/Category</th>
+                      <th className="p-4">Cost (Buying)</th>
+                      <th className="p-4">Retail (Selling)</th>
                       <th className="p-4 w-40">Stock Check</th>
                       <th className="p-4 text-center w-32">Actions</th>
                     </tr>
@@ -428,18 +532,16 @@ const AdminDashboard = () => {
                               )}
                             </div>
                           </td>
-                          <td className="p-4 font-medium text-white">
-                            <div className="line-clamp-2">{p.name}</div>
-                            {p.stock > 0 && p.stock < 5 && (
-                              <span className="text-[10px] text-red-400 font-black uppercase tracking-widest mt-1 block">Low Stock</span>
-                            )}
-                          </td>
                           <td className="p-4">
-                            <span className="bg-gray-800 text-gray-300 px-3 py-1 rounded-md text-sm border border-gray-700">
-                              {p.category}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-white font-bold truncate max-w-[180px]">{p.name}</span>
+                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{p.category}</span>
+                            </div>
                           </td>
-                          <td className="p-4 font-bold text-accentOrange whitespace-nowrap">
+                          <td className="p-4 tabular-nums text-gray-500 font-medium">
+                            KES {(p.buyingPrice || 0).toLocaleString()}
+                          </td>
+                          <td className="p-4 tabular-nums text-accentOrange font-black italic whitespace-nowrap">
                             KES {p.price.toLocaleString()}
                           </td>
                           <td className="p-4">
@@ -534,9 +636,33 @@ const AdminDashboard = () => {
                             <span className="font-black text-white italic">KES {order.total.toLocaleString()}</span>
                           </td>
                           <td className="p-4">
-                             <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-500/50">
-                               <Clock className="w-3 h-3" />
-                               Redirected
+                             <div className="flex flex-col gap-2">
+                               <select 
+                                 value={order.status} 
+                                 onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                 className={`text-[10px] font-black uppercase px-2 py-1 rounded border transition ${
+                                   order.status === 'completed' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
+                                   order.status === 'cancelled' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
+                                   'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
+                                 }`}
+                               >
+                                 <option value="pending">Pending</option>
+                                 <option value="completed">Completed</option>
+                                 <option value="cancelled">Cancelled</option>
+                               </select>
+
+                               <select 
+                                 value={order.paymentType || 'Cash'} 
+                                 onChange={(e) => {
+                                   const newType = e.target.value;
+                                   const newStatus = newType === 'Credit' ? 'Unpaid' : 'Paid';
+                                   handleUpdateOrderPayment(order.id, newStatus, newType);
+                                 }}
+                                 className="text-[10px] font-black uppercase px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400"
+                               >
+                                 <option value="Cash">Cash</option>
+                                 <option value="Credit">Credit</option>
+                               </select>
                              </div>
                           </td>
                         </tr>
@@ -548,6 +674,76 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* CREDITORS TAB */}
+        {activeTab === 'creditors' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-80px)]">
+            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4 flex items-center gap-3">
+              Creditors Tracker
+              <TrendingDown className="w-6 h-6 text-red-500 opacity-50" />
+            </h2>
+            
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
+              <div className="overflow-x-auto flex-1 h-0">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
+                    <tr>
+                      <th className="p-4">Customer/Time</th>
+                      <th className="p-4">Amount Owed</th>
+                      <th className="p-4">Credit Age</th>
+                      <th className="p-4 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/50">
+                    {orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="p-12 text-center text-gray-500 italic">
+                          No outstanding debts found. Good job!
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').map((order) => {
+                        const ageInDays = Math.floor((new Date() - order.createdAt?.toDate()) / (1000 * 60 * 60 * 24));
+                        const isOverdue = ageInDays >= 2;
+                        
+                        return (
+                          <tr key={order.id} className={`transition group ${isOverdue ? 'bg-red-500/5' : 'hover:bg-gray-800/30'}`}>
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="text-white font-bold">{order.customerName || 'WhatsApp Customer'}</span>
+                                <span className="text-[10px] text-gray-500">{new Date(order.createdAt?.toDate()).toLocaleString()}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={`font-black italic ${isOverdue ? 'text-red-500' : 'text-white'}`}>KES {order.total.toLocaleString()}</span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${isOverdue ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-800 text-gray-400'}`}>
+                                  {ageInDays} Days Old
+                                </span>
+                                {isOverdue && <AlertCircle className="w-4 h-4 text-red-500" title="Overdue Alert!" />}
+                              </div>
+                            </td>
+                            <td className="p-4 text-center">
+                              <button 
+                                onClick={() => handleUpdateOrderPayment(order.id, 'Paid', 'Credit')}
+                                className="px-4 py-2 bg-green-500/10 text-green-500 border border-green-500/30 rounded-lg text-xs font-black uppercase hover:bg-green-500 hover:text-white transition"
+                              >
+                                Mark as Paid
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'settings' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl">
             <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Store Settings</h2>

@@ -34,6 +34,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import ProductModal from '../components/admin/ProductModal';
+import ManualSaleModal from '../components/admin/ManualSaleModal';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, creditors, settings
@@ -47,6 +48,7 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
 
   // Categories State
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -621,7 +623,16 @@ const AdminDashboard = () => {
         {/* ORDERS LOG TAB */}
         {activeTab === 'orders' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-80px)]">
-            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Customer Orders Log</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <h2 className="text-3xl font-bold text-white border-b border-gray-800 pb-4">Customer Orders Log</h2>
+              <button
+                onClick={() => setIsSaleModalOpen(true)}
+                className="bg-accentOrange hover:bg-orange-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-accentOrange/20 transition flex items-center gap-2 transform hover:-translate-y-0.5"
+              >
+                <Plus className="w-5 h-5" />
+                Record Physical Sale
+              </button>
+            </div>
             
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
               <div className="overflow-x-auto flex-1 h-0">
@@ -865,6 +876,12 @@ const AdminDashboard = () => {
         onClose={() => setIsModalOpen(false)} 
         product={editingProduct}
         categories={categories}
+      />
+      
+      <ManualSaleModal
+        isOpen={isSaleModalOpen}
+        onClose={() => setIsSaleModalOpen(false)}
+        products={products}
       />
     </div>
   );

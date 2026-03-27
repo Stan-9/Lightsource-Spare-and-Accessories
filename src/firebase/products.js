@@ -9,7 +9,8 @@ import {
   getDoc,
   setDoc,
   query,
-  orderBy
+  orderBy,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from './config';
 import { uploadProductImage, deleteProductImage } from './storage';
@@ -169,6 +170,43 @@ export const logOrder = async (orderData) => {
     await addDoc(ordersDoc, newOrder);
   } catch (error) {
     console.error("Error logging order: ", error);
+  }
+};
+
+export const processManualSale = async (orderData) => {
+  try {
+    // We use a transaction to safely deduct stock for all items
+    await runTransaction(db, async (transaction) => {
+      const productDocs = [];
+      // Read all products first
+      for (const item of orderData.items) {
+        const productRef = doc(db, 'products', item.id);
+        const productDoc = await transaction.get(productRef);
+        if (!productDoc.exists()) {
+          throw new Error(`Product ${item.name} does not exist!`);
+        }
+        productDocs.push({ ref: productRef, data: productDoc.data(), quantity: item.quantity });
+      }
+
+      // Perform updates
+      for (const product of productDocs) {
+        const newStock = Math.max(0, product.data.stock - product.quantity);
+        transaction.update(product.ref, { stock: newStock });
+      }
+
+      // Add the order
+      const newOrderRef = doc(ordersDoc);
+      transaction.set(newOrderRef, {
+        ...orderData,
+        createdAt: serverTimestamp(),
+        status: 'completed', // Manually completed sale
+        paymentType: orderData.paymentType || 'Cash',
+        paymentStatus: orderData.paymentStatus || 'Paid'
+      });
+    });
+  } catch (error) {
+    console.error("Error processing manual sale: ", error);
+    throw error;
   }
 };
 

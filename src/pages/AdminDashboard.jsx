@@ -513,6 +513,7 @@ const AdminDashboard = () => {
                       <th className="p-4">Name/Category</th>
                       <th className="p-4">Cost (Buying)</th>
                       <th className="p-4">Retail (Selling)</th>
+                      <th className="p-4">Total Profit (Est)</th>
                       <th className="p-4 w-40">Stock Check</th>
                       <th className="p-4 text-center w-32">Actions</th>
                     </tr>
@@ -525,13 +526,14 @@ const AdminDashboard = () => {
                           <td className="p-4"><div className="h-4 bg-gray-800 rounded w-3/4"></div></td>
                           <td className="p-4"><div className="h-4 bg-gray-800 rounded w-1/2"></div></td>
                           <td className="p-4"><div className="h-4 bg-gray-800 rounded w-1/3"></div></td>
+                          <td className="p-4"><div className="h-4 bg-gray-800 rounded w-1/2"></div></td>
                           <td className="p-4"><div className="h-8 bg-gray-800 rounded w-full"></div></td>
                           <td className="p-4"><div className="h-8 bg-gray-800 rounded w-full"></div></td>
                         </tr>
                       ))
                     ) : filteredProducts.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="p-8 text-center text-gray-500">
+                        <td colSpan="7" className="p-8 text-center text-gray-500">
                           No products found matching your search.
                         </td>
                       </tr>
@@ -562,14 +564,23 @@ const AdminDashboard = () => {
                             KES {(p.buyingPrice || 0).toLocaleString()}
                           </td>
                           <td className="p-4">
+                            <span className="tabular-nums text-accentOrange font-black italic whitespace-nowrap">
+                              KES {p.price.toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="p-4">
                             <div className="flex flex-col">
-                              <span className="tabular-nums text-accentOrange font-black italic whitespace-nowrap">
-                                KES {p.price.toLocaleString()}
-                              </span>
-                              {p.price > 0 && (p.buyingPrice || 0) > 0 && (
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${p.price > (p.buyingPrice || 0) ? 'text-green-500' : 'text-red-500'}`}>
-                                  {(((p.price - (p.buyingPrice || 0)) / p.price) * 100).toFixed(1)}% Margin
-                                </span>
+                              {p.price > 0 && (p.buyingPrice || 0) > 0 ? (
+                                <>
+                                  <span className={`tabular-nums font-black whitespace-nowrap ${p.price > (p.buyingPrice || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                                    KES {((p.price - (p.buyingPrice || 0)) * p.stock).toLocaleString()}
+                                  </span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider ${p.price > (p.buyingPrice || 0) ? 'text-green-500/70' : 'text-red-500/70'}`}>
+                                    {(((p.price - (p.buyingPrice || 0)) / p.price) * 100).toFixed(1)}% Margin
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-gray-500 text-sm italic">N/A</span>
                               )}
                             </div>
                           </td>

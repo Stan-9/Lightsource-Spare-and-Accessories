@@ -339,7 +339,14 @@ const AdminDashboard = () => {
                   </div>
                   
                   <div className="md:border-r border-white/10 pr-8">
-                    <span className="text-green-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Projected Potential Profit</span>
+                    <span className="text-green-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 flex items-center justify-between">
+                      Projected Potential Profit
+                      {stats.totalValue > 0 && (
+                        <span className="bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full tracking-wider">
+                          {((stats.potentialProfit / stats.totalValue) * 100).toFixed(1)}% Margin
+                        </span>
+                      )}
+                    </span>
                     <h3 className="text-3xl font-black text-white tracking-tighter">
                       <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
                       {stats.potentialProfit.toLocaleString()}
@@ -348,7 +355,14 @@ const AdminDashboard = () => {
                   </div>
 
                   <div>
-                    <span className="text-blue-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Actual Store Profit</span>
+                    <span className="text-blue-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 flex items-center justify-between">
+                      Actual Store Profit
+                      {stats.actualSales > 0 && (
+                        <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full tracking-wider">
+                          {((stats.actualProfit / stats.actualSales) * 100).toFixed(1)}% Margin
+                        </span>
+                      )}
+                    </span>
                     <h3 className="text-3xl font-black text-white tracking-tighter">
                       <span className="text-blue-500 text-lg mr-2 font-medium italic">KES</span>
                       {stats.actualProfit.toLocaleString()}
@@ -406,10 +420,14 @@ const AdminDashboard = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-gray-400 font-bold">{new Date(order.createdAt?.toDate()).toLocaleDateString()}</p>
-                          <h4 className="text-sm font-bold text-white truncate">{order.items.length} items ordered</h4>
+                          <h4 className="text-sm font-bold text-white truncate">{order.customerName || `${order.items.length} items ordered`}</h4>
+                          <p className="text-[10px] text-gray-500 truncate">{order.items.map(i => i.name).join(', ')}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-black text-white italic">KES {order.total.toLocaleString()}</p>
+                          <p className={`text-[10px] uppercase font-black ${order.status === 'completed' ? 'text-green-500' : order.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
+                            {order.status || 'pending'}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -541,8 +559,17 @@ const AdminDashboard = () => {
                           <td className="p-4 tabular-nums text-gray-500 font-medium">
                             KES {(p.buyingPrice || 0).toLocaleString()}
                           </td>
-                          <td className="p-4 tabular-nums text-accentOrange font-black italic whitespace-nowrap">
-                            KES {p.price.toLocaleString()}
+                          <td className="p-4">
+                            <div className="flex flex-col">
+                              <span className="tabular-nums text-accentOrange font-black italic whitespace-nowrap">
+                                KES {p.price.toLocaleString()}
+                              </span>
+                              {p.price > 0 && (p.buyingPrice || 0) > 0 && (
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${p.price > (p.buyingPrice || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                                  {(((p.price - (p.buyingPrice || 0)) / p.price) * 100).toFixed(1)}% Margin
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4">
                             <div className={`flex items-center gap-2 border rounded-lg p-1 w-max transition-colors ${p.stock > 0 && p.stock < 5 ? 'bg-red-500/10 border-red-500/30' : 'bg-gray-900 border-gray-700'}`}>

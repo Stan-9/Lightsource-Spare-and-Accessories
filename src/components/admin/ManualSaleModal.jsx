@@ -117,7 +117,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-800">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-800 min-h-0">
           
           {/* Left panel: Product Selection */}
           <div className="flex-1 flex flex-col min-h-0 bg-gray-900/30">
@@ -177,7 +177,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
               <h3 className="font-bold text-gray-300 uppercase tracking-widest text-xs">Current Sale ({cart.length} items)</h3>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[150px] md:max-h-none">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-2">
                   <ShoppingCart className="w-8 h-8 opacity-20" />

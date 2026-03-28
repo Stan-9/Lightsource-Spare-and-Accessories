@@ -4,7 +4,7 @@ import CartDrawer from '../components/shared/CartDrawer';
 import SkeletonCard from '../components/shared/SkeletonCard';
 import { subscribeProducts, subscribeSettings } from '../firebase/products';
 import { useCart } from '../context/CartContext';
-import { Search, Info, Plus } from 'lucide-react';
+import { Search, Info, Plus, ShoppingCart } from 'lucide-react';
 
 const StoreFront = () => {
   const [products, setProducts] = useState([]);
@@ -78,7 +78,7 @@ const StoreFront = () => {
           {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60" />
 
-          <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center z-10">
+          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 justify-between items-center z-10">
             <div className="bg-darkBg/60 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-black text-white/90 border border-gray-700/50 uppercase tracking-widest">
               {product.category || 'Standard'}
             </div>
@@ -105,7 +105,7 @@ const StoreFront = () => {
             )}
           </div>
 
-          <div className="mt-auto flex items-end justify-between gap-4">
+          <div className="mt-auto flex flex-wrap items-end justify-between gap-4">
             <div>
               <span className="text-[10px] text-gray-500 uppercase font-black block tracking-widest mb-1">Price</span>
               <span className="text-2xl font-black text-white tracking-tighter">
@@ -162,7 +162,7 @@ const StoreFront = () => {
             <span className="inline-block bg-accentOrange/10 text-accentOrange text-[10px] font-black px-4 py-1.5 rounded-full border border-accentOrange/20 uppercase tracking-[0.3em] mb-6">
               Genuine Motorbike Spare Parts
             </span>
-            <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-8 tracking-tighter">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white leading-tight mb-8 tracking-tighter">
               Performance <span className="text-accentOrange">Meets</span> <br className="hidden md:block" /> Reliability.
             </h1>
             <p className="text-gray-400 text-lg md:text-xl font-medium max-w-xl mb-10 leading-relaxed">
@@ -177,7 +177,7 @@ const StoreFront = () => {
                   placeholder="Search by part name or category..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800/40 border border-gray-700/50 rounded-2xl py-5 pl-12 pr-6 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accentOrange/50 focus:border-accentOrange transition-all backdrop-blur-md shadow-2xl"
+                  className="w-full bg-gray-800/40 border border-gray-700/50 rounded-2xl py-4 sm:py-5 pl-12 pr-6 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accentOrange/50 focus:border-accentOrange transition-all backdrop-blur-md shadow-2xl"
                 />
               </div>
             </div>

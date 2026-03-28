@@ -99,8 +99,8 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="flex flex-col md:flex-row gap-6">
+        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-6">
+          <div className="flex flex-col md:flex-row gap-4 md:gap-6">
             {/* Image Upload Area */}
             <div className="w-full md:w-1/3 space-y-3">
               <label className="block text-sm font-medium text-gray-400">Product Image</label>
@@ -160,7 +160,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-400 mb-1">Category *</label>
                   <select 
@@ -231,7 +231,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
             />
           </div>
 
-          <div className="pt-4 border-t border-gray-800 flex justify-end gap-3 sticky bottom-[-24px] bg-darkBg/90 backdrop-blur pb-6">
+          <div className="pt-4 border-t border-gray-800 flex justify-end gap-3 sticky bottom-0 bg-darkBg/95 backdrop-blur py-4 px-1">
             <button 
               type="button" 
               onClick={onClose}

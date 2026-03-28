@@ -139,7 +139,7 @@ const CartDrawer = ({ whatsappNumber }) => {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-auto">
+                    <div className="flex flex-wrap items-center justify-between mt-auto gap-2">
                       <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1 border border-gray-700/50">
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity - 1, item.stock)}

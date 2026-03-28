@@ -258,18 +258,18 @@ const AdminDashboard = () => {
   const NavButton = ({ id, icon: Icon, label, badge = null }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium group ${
+      className={`shrink-0 md:w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium group ${
         activeTab === id 
-          ? 'bg-accentOrange/10 text-accentOrange shadow-[inset_2px_0_0_0_#FF6B00]' 
+          ? 'bg-accentOrange/10 text-accentOrange md:shadow-[inset_2px_0_0_0_#FF6B00]' 
           : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
       }`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         <Icon className={`w-5 h-5 ${activeTab === id ? 'text-accentOrange' : 'group-hover:text-gray-200'}`} />
-        {label}
+        <span className="whitespace-nowrap truncate">{label}</span>
       </div>
-      {badge && (
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activeTab === id ? 'bg-accentOrange text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
+      {badge !== null && (
+        <span className={`ml-3 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${activeTab === id ? 'bg-accentOrange text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
           {badge}
         </span>
       )}
@@ -280,8 +280,8 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-darkBg text-gray-200 flex flex-col md:flex-row font-poppins selection:bg-accentOrange/30">
       
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-gray-900 border-r border-gray-800 flex flex-col z-20 sticky top-0 md:h-screen">
-        <div className="p-6 border-b border-gray-800">
+      <aside className="w-full md:w-64 bg-gray-900 md:border-r border-b border-gray-800 flex flex-col z-20 sticky top-0 md:h-screen shrink-0 shadow-2xl md:shadow-none">
+        <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center">
           <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 rounded-xl bg-accentOrange flex items-center justify-center font-bold text-white shadow-lg shadow-accentOrange/30">
               L
@@ -291,9 +291,16 @@ const AdminDashboard = () => {
               <p className="text-xs text-gray-400 font-medium tracking-wide italic">Admin Panel</p>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="md:hidden flex items-center justify-center p-2 rounded-xl text-red-500 hover:bg-red-500/10 transition border border-red-500/20"
+            title="Sign Out"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex md:flex-col p-2 md:p-4 gap-2 md:gap-0 md:space-y-2 overflow-x-auto md:overflow-y-auto no-scrollbar md:flex-1">
           <NavButton id="overview" icon={LayoutDashboard} label="Overview" />
           <NavButton id="products" icon={Package} label="Inventory" badge={products.length} />
           <NavButton id="orders" icon={ShoppingCart} label="Orders Log" badge={orders.length} />
@@ -306,7 +313,7 @@ const AdminDashboard = () => {
           <NavButton id="settings" icon={Settings} label="Settings" />
         </nav>
 
-        <div className="p-4 border-t border-gray-800 bg-gray-900/50">
+        <div className="hidden md:block p-4 border-t border-gray-800 bg-gray-900/50">
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/10 hover:text-red-400 transition font-black uppercase text-[10px] tracking-widest border border-red-500/20"
@@ -331,7 +338,7 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
               <div className="col-span-1 lg:col-span-4 bg-gradient-to-r from-accentOrange/20 to-transparent border border-accentOrange/30 p-8 rounded-3xl relative overflow-hidden">
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-                  <div className="md:border-r border-white/10 pr-8">
+                  <div className="border-b md:border-b-0 md:border-r border-white/10 pb-6 md:pb-0 md:pr-8">
                     <span className="text-accentOrange font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Warehouse Value (Cost)</span>
                     <h3 className="text-3xl font-black text-white tracking-tighter">
                       <span className="text-accentOrange text-lg mr-2 font-medium italic">KES</span>
@@ -340,7 +347,7 @@ const AdminDashboard = () => {
                     <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Total money tied in stock</p>
                   </div>
                   
-                  <div className="md:border-r border-white/10 pr-8">
+                  <div className="border-b md:border-b-0 md:border-r border-white/10 pb-6 md:pb-0 md:pr-8">
                     <span className="text-green-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 flex items-center justify-between">
                       Projected Potential Profit
                       {stats.totalValue > 0 && (
@@ -472,7 +479,7 @@ const AdminDashboard = () => {
 
         {/* PRODUCTS TAB */}
         {activeTab === 'products' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-80px)]">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col md:h-[calc(100vh-80px)]">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-3xl font-bold text-white">Inventory Management</h2>
               
@@ -505,7 +512,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
-              <div className="overflow-x-auto flex-1 h-0">
+              <div className="overflow-x-auto flex-1 md:h-0">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
                     <tr>
@@ -633,7 +640,7 @@ const AdminDashboard = () => {
 
         {/* ORDERS LOG TAB */}
         {activeTab === 'orders' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-80px)]">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col md:h-[calc(100vh-80px)]">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-3xl font-bold text-white border-b border-gray-800 pb-4">Customer Orders Log</h2>
               <button
@@ -646,7 +653,7 @@ const AdminDashboard = () => {
             </div>
             
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
-              <div className="overflow-x-auto flex-1 h-0">
+              <div className="overflow-x-auto flex-1 md:h-0">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
                     <tr>
@@ -726,14 +733,14 @@ const AdminDashboard = () => {
 
         {/* CREDITORS TAB */}
         {activeTab === 'creditors' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-80px)]">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col md:h-[calc(100vh-80px)]">
             <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4 flex items-center gap-3">
               Creditors Tracker
               <TrendingDown className="w-6 h-6 text-red-500 opacity-50" />
             </h2>
             
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
-              <div className="overflow-x-auto flex-1 h-0">
+              <div className="overflow-x-auto flex-1 md:h-0">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
                     <tr>

@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 
 import { logOrder } from '../../firebase/products';
 
+import { Link, useNavigate } from 'react-router-dom';
+
 const CartDrawer = ({ whatsappNumber }) => {
   const { 
     cartItems, 
@@ -14,8 +16,12 @@ const CartDrawer = ({ whatsappNumber }) => {
     updateQuantity, 
     grandTotal 
   } = useCart();
+  const navigate = useNavigate();
 
-  const [customerName, setCustomerName] = useState('');
+  const handleCheckoutRedirect = () => {
+    closeDrawer();
+    navigate('/checkout');
+  };
 
   const handleWhatsAppCheckout = async () => {
     if (cartItems.length === 0) {
@@ -30,7 +36,7 @@ const CartDrawer = ({ whatsappNumber }) => {
 
     // Prepare order data for Firestore
     const orderData = {
-      customerName: customerName || 'WhatsApp Customer',
+      customerName: 'WhatsApp Customer',
       items: cartItems.map(item => ({
         id: item.id,
         name: item.name,
@@ -59,6 +65,7 @@ const CartDrawer = ({ whatsappNumber }) => {
     toast.success('Opening WhatsApp...');
     window.open(url, '_blank');
   };
+
 
   return (
     <>
@@ -177,19 +184,6 @@ const CartDrawer = ({ whatsappNumber }) => {
         {cartItems.length > 0 && (
           <div className="p-6 border-t border-gray-800 bg-gray-900 shadow-[0_-20px_40px_rgba(0,0,0,0.4)] relative z-10">
             <div className="space-y-4 mb-6">
-              <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-accentOrange transition-colors">
-                  <User className="w-4 h-4" />
-                </div>
-                <input 
-                  type="text"
-                  placeholder="Your Name (for our records)"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full bg-black/40 border border-gray-700 rounded-xl py-3 pl-11 pr-4 text-white text-sm focus:outline-none focus:border-accentOrange/50 focus:ring-1 focus:ring-accentOrange/20 transition-all placeholder:text-gray-600"
-                />
-              </div>
-
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-gray-400 text-sm font-medium">
                   <span>Subtotal ({cartItems.length} items)</span>
@@ -197,7 +191,7 @@ const CartDrawer = ({ whatsappNumber }) => {
                 </div>
                 <div className="flex justify-between items-center text-gray-400 text-sm font-medium">
                   <span>Estimated Delivery</span>
-                  <span className="text-green-500">Quote on Whatsapp</span>
+                  <span className="text-green-500">Calculated at checkout</span>
                 </div>
                 <div className="h-px bg-gray-800 my-1" />
                 <div className="flex justify-between items-end">
@@ -205,22 +199,28 @@ const CartDrawer = ({ whatsappNumber }) => {
                     <span className="text-[10px] text-gray-500 uppercase font-black block tracking-widest mb-0.5">Total Amount</span>
                     <span className="text-2xl font-black text-white leading-none">KES {grandTotal.toLocaleString()}</span>
                   </div>
-                  <div className="bg-accentOrange/10 text-accentOrange text-[10px] font-black px-2.5 py-1 rounded-full border border-accentOrange/20">
-                    SECURE CHECKOUT
-                  </div>
                 </div>
               </div>
             </div>
             
-            <button 
-              onClick={handleWhatsAppCheckout}
-              className="w-full bg-accentOrange hover:bg-orange-600 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_20px_rgba(255,107,0,0.3)] group"
-            >
-              Order via WhatsApp
-              <div className="w-1.5 h-1.5 rounded-full bg-white/40 group-hover:bg-white animate-ping" />
-            </button>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleCheckoutRedirect}
+                className="w-full bg-accentOrange hover:bg-orange-600 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_20px_rgba(254,107,0,0.2)]"
+              >
+                Proceed to Checkout
+              </button>
+              
+              <button 
+                onClick={handleWhatsAppCheckout}
+                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all border border-gray-700"
+              >
+                Order via WhatsApp
+              </button>
+            </div>
+
             <p className="text-[10px] text-gray-500 text-center mt-4 uppercase tracking-[0.2em] font-medium leading-relaxed">
-              We provide delivery across all regions
+              Fast delivery across all regions
             </p>
           </div>
         )}

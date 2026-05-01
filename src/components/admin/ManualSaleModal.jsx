@@ -299,6 +299,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
               </button>
             </div>
           </div>
+        </div>
         )}
 
       </div>

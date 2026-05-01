@@ -158,8 +158,8 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-sm text-gray-200 truncate group-hover:text-white">{p.name}</h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-accentOrange font-black text-xs">KES {p.price.toLocaleString()}</span>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase">• Stock: {p.stock}</span>
+                        <span className="text-accentOrange font-black text-xs">KES {p.price?.toLocaleString() || '0'}</span>
+                        <span className="text-[10px] text-gray-500 font-bold uppercase">• Stock: {p.stock ?? 0}</span>
                       </div>
                     </div>
                     <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 group-hover:bg-accentOrange group-hover:text-white transition-colors">
@@ -210,7 +210,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
                         </button>
                       </div>
                       <span className="text-sm font-black text-white">
-                        KES {(item.price * item.quantity).toLocaleString()}
+                        KES {((item.price || 0) * (item.quantity || 0)).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
 
               <div className="flex justify-between items-end border-t border-gray-800 pt-3">
                 <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Grand Total</span>
-                <span className="text-2xl font-black text-accentOrange italic">KES {grandTotal.toLocaleString()}</span>
+                <span className="text-2xl font-black text-accentOrange italic">KES {(grandTotal || 0).toLocaleString()}</span>
               </div>
 
               <button

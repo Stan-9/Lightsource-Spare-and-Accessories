@@ -433,7 +433,7 @@ const AdminDashboard = () => {
                           <p className="text-[10px] text-gray-500 truncate">{order.items.map(i => i.name).join(', ')}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-black text-white italic">KES {order.total.toLocaleString()}</p>
+                          <p className="text-sm font-black text-white italic">KES {order.total?.toLocaleString() || '0'}</p>
                           <p className={`text-[10px] uppercase font-black ${order.status === 'completed' ? 'text-green-500' : order.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
                             {order.status || 'pending'}
                           </p>
@@ -675,21 +675,25 @@ const AdminDashboard = () => {
                         <tr key={order.id} className="hover:bg-gray-800/30 transition group">
                           <td className="p-4">
                             <div className="flex flex-col">
-                              <span className="text-white font-bold">{new Date(order.createdAt?.toDate()).toLocaleDateString()}</span>
-                              <span className="text-xs text-gray-500">{new Date(order.createdAt?.toDate()).toLocaleTimeString()}</span>
+                              <span className="text-white font-bold">
+                                {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString() : 'Processing...'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleTimeString() : ''}
+                              </span>
                             </div>
                           </td>
                           <td className="p-4">
                             <div className="space-y-1">
-                              {order.items.map((item, idx) => (
+                              {(order.items || []).map((item, idx) => (
                                 <div key={idx} className="text-xs text-gray-300">
-                                  <span className="text-accentOrange font-bold">{item.quantity}x</span> {item.name}
+                                  <span className="text-accentOrange font-bold">{(item.quantity || 1)}x</span> {item.name || 'Unknown Item'}
                                 </div>
                               ))}
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className="font-black text-white italic">KES {order.total.toLocaleString()}</span>
+                            <span className="font-black text-white italic">KES {(order.total || 0).toLocaleString()}</span>
                           </td>
                           <td className="p-4">
                              <div className="flex flex-col gap-2">

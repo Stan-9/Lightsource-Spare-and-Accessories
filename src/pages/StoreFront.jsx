@@ -42,7 +42,8 @@ const StoreFront = () => {
       const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchCategory = activeCategory === 'All' || p.category === activeCategory;
-      return matchSearch && matchCategory;
+      const isVisible = p.isVisible !== false;
+      return matchSearch && matchCategory && isVisible;
     });
   }, [products, searchQuery, activeCategory]);
 
@@ -114,8 +115,10 @@ const StoreFront = () => {
               </span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-gray-400 font-bold bg-gray-900/80 px-2 py-1 rounded-md border border-gray-700/50">
-                {product.stock} units
+              <span className={`px-3 py-1 rounded-lg text-[10px] font-black shadow-lg flex items-center gap-1.5 uppercase tracking-widest ${
+                isOutOfStock ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'
+              }`}>
+                {isOutOfStock ? 'Sold Out' : 'In Stock'}
               </span>
             </div>
           </div>

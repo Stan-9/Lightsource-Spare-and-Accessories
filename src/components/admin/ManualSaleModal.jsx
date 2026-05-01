@@ -10,6 +10,8 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
   const [paymentType, setPaymentType] = useState('Cash'); // Cash, Credit
   const [paymentStatus, setPaymentStatus] = useState('Paid'); // Paid, Unpaid
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastOrder, setLastOrder] = useState(null);
 
   // Filter products that have stock > 0 and match search
   const filteredProducts = useMemo(() => {
@@ -80,14 +82,15 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
       };
 
       await processManualSale(orderData);
+      setLastOrder({ ...orderData, id: 'REC-' + Date.now().toString().slice(-6) });
       toast.success('Sale recorded and stock updated successfully!');
       
-      // Reset form on success
+      // Don't close immediately, show receipt
+      setShowReceipt(true);
       setCart([]);
       setCustomerName('Walk-in Customer');
       setPaymentType('Cash');
       setPaymentStatus('Paid');
-      onClose();
     } catch (error) {
       console.error(error);
       toast.error(error.message || 'Failed to record sale');
@@ -106,7 +109,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
         <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
             <ShoppingCart className="w-6 h-6 text-accentOrange" />
-            Record Physical Sale
+            {showReceipt ? 'Sale Receipt' : 'Record Physical Sale'}
           </h2>
           <button 
             onClick={onClose}
@@ -117,7 +120,16 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-800 min-h-0">
+        {showReceipt ? (
+          <div className="flex-1 overflow-y-auto">
+            <ReceiptView 
+              order={lastOrder} 
+              onPrint={() => window.print()} 
+              onClose={onClose} 
+            />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-800 min-h-0">
           
           {/* Left panel: Product Selection */}
           <div className="flex-1 flex flex-col min-h-0 bg-gray-900/30">
@@ -201,7 +213,12 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="text-sm font-bold w-6 text-center text-white">{item.quantity}</span>
+                        <input 
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0, item.stock)}
+                          className="w-12 text-sm font-bold text-center bg-transparent text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity + 1, item.stock)}
                           className="w-6 h-6 flex items-center justify-center bg-gray-800 rounded text-gray-400 hover:text-white transition"
@@ -282,9 +299,109 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
               </button>
             </div>
           </div>
-        </div>
+        )}
 
       </div>
+    </div>
+  );
+};
+
+// Simple printable receipt component
+const ReceiptView = ({ order, onPrint, onClose }) => {
+  if (!order) return null;
+
+  return (
+    <div className="flex flex-col h-full bg-white text-black p-8 font-mono">
+      <div className="flex justify-between items-start mb-8 print:hidden">
+        <h2 className="text-xl font-bold text-gray-800">Sale Receipt Generated</h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={onPrint}
+            className="bg-accentOrange text-white px-6 py-2 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-accentOrange/20"
+          >
+            Print Receipt
+          </button>
+          <button 
+            onClick={onClose}
+            className="bg-gray-200 text-gray-700 px-6 py-2 rounded-xl font-bold hover:bg-gray-300 transition"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+
+      <div id="receipt-content" className="max-w-sm mx-auto border-2 border-dashed border-gray-300 p-6 bg-white">
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-black uppercase tracking-tighter mb-1">LIGHTSOURCE MOTORS</h1>
+          <p className="text-[10px] text-gray-600">Performance & Reliability</p>
+          <div className="h-px bg-black/10 my-4" />
+          <p className="text-xs font-bold uppercase">Official Receipt</p>
+          <p className="text-[10px] mt-1 text-gray-500">{new Date().toLocaleString()}</p>
+        </div>
+
+        <div className="space-y-4 mb-6">
+          <div className="flex justify-between text-[10px]">
+            <span className="font-bold uppercase">Receipt #:</span>
+            <span>{order.id}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="font-bold uppercase">Customer:</span>
+            <span>{order.customerName}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="font-bold uppercase">Payment:</span>
+            <span>{order.paymentType} ({order.paymentStatus})</span>
+          </div>
+        </div>
+
+        <div className="border-t border-b border-black py-4 mb-6">
+          <table className="w-full text-[10px]">
+            <thead>
+              <tr className="text-left font-black uppercase">
+                <th className="pb-2">Item</th>
+                <th className="pb-2 text-center">Qty</th>
+                <th className="pb-2 text-right">Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {order.items.map((item, i) => (
+                <tr key={i}>
+                  <td className="py-2 pr-2 leading-tight">{item.name}</td>
+                  <td className="py-2 text-center">{item.quantity}</td>
+                  <td className="py-2 text-right">{(item.price * item.quantity).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="space-y-2 mb-8">
+          <div className="flex justify-between text-base font-black">
+            <span>TOTAL</span>
+            <span>KES {order.total.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2">Thank you for your business!</p>
+          <div className="w-16 h-1 bg-black mx-auto mb-2" />
+          <p className="text-[8px] text-gray-500 italic">Goods once sold are not returnable</p>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          #receipt-content, #receipt-content * { visibility: visible; }
+          #receipt-content { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 100%;
+            border: none;
+          }
+        }
+      `}} />
     </div>
   );
 };

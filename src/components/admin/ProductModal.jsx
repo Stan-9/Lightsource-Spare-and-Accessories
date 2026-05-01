@@ -11,6 +11,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
     buyingPrice: '',
     stock: '',
     description: '',
+    isVisible: true,
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -25,10 +26,11 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
         buyingPrice: product.buyingPrice || '',
         stock: product.stock || '',
         description: product.description || '',
+        isVisible: product.isVisible ?? true,
       });
       setImagePreview(product.imageUrl || null);
     } else {
-      setFormData({ name: '', category: '', price: '', buyingPrice: '', stock: '', description: '', imageUrl: '' });
+      setFormData({ name: '', category: '', price: '', buyingPrice: '', stock: '', description: '', imageUrl: '', isVisible: true });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -229,6 +231,22 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition h-24 resize-none"
               placeholder="Add product details here..."
             />
+          </div>
+
+          <div className="flex items-center gap-3 bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
+            <input 
+              type="checkbox"
+              id="isVisible"
+              checked={formData.isVisible}
+              onChange={e => setFormData({...formData, isVisible: e.target.checked})}
+              className="w-5 h-5 accent-accentOrange bg-gray-900 border-gray-700 rounded focus:ring-accentOrange/50"
+            />
+            <label htmlFor="isVisible" className="flex flex-col cursor-pointer">
+              <span className="text-sm font-bold text-white">Visible to Customers</span>
+              <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">
+                If off, this item will be hidden from the storefront
+              </span>
+            </label>
           </div>
 
           <div className="pt-4 border-t border-gray-800 flex justify-end gap-3 sticky bottom-0 bg-darkBg/95 backdrop-blur py-4 px-1">

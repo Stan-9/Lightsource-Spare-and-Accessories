@@ -122,6 +122,16 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleToggleVisibility = async (product) => {
+    try {
+      const newVisibility = !(product.isVisible ?? true);
+      await updateProduct(product.id, product, { ...product, isVisible: newVisibility });
+      toast.success(newVisibility ? 'Product visible on storefront' : 'Product hidden from storefront');
+    } catch (error) {
+      toast.error('Failed to update visibility');
+    }
+  };
+
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     try {
@@ -522,6 +532,7 @@ const AdminDashboard = () => {
                       <th className="p-4">Retail (Selling)</th>
                       <th className="p-4">Total Profit (Est)</th>
                       <th className="p-4 w-40">Stock Check</th>
+                      <th className="p-4 text-center">Storefront</th>
                       <th className="p-4 text-center w-32">Actions</th>
                     </tr>
                   </thead>
@@ -599,9 +610,12 @@ const AdminDashboard = () => {
                               >
                                 -
                               </button>
-                              <span className={`w-8 text-center font-bold text-sm ${p.stock <= 0 ? 'text-red-500' : p.stock < 5 ? 'text-red-400' : 'text-white'}`}>
-                                {p.stock}
-                              </span>
+                              <input 
+                                type="number"
+                                value={p.stock}
+                                onChange={(e) => handleStockUpdate(p.id, 0, parseInt(e.target.value) || 0)}
+                                className={`w-12 text-center font-bold text-sm bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${p.stock <= 0 ? 'text-red-500' : p.stock < 5 ? 'text-red-400' : 'text-white'}`}
+                              />
                               <button 
                                 onClick={() => handleStockUpdate(p.id, p.stock, 1)}
                                 className="w-7 h-7 flex items-center justify-center rounded bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 transition"
@@ -609,6 +623,18 @@ const AdminDashboard = () => {
                                 +
                               </button>
                             </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => handleToggleVisibility(p)}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                p.isVisible !== false 
+                                  ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+                                  : 'bg-gray-800 text-gray-500 border border-gray-700'
+                              }`}
+                            >
+                              {p.isVisible !== false ? 'Visible' : 'Hidden'}
+                            </button>
                           </td>
                           <td className="p-4 text-center">
                             <div className="flex justify-center gap-2">

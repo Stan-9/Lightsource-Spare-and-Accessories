@@ -12,6 +12,13 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// Debug Log (Safe to show in production for debugging)
+console.log("Firebase initialized for project:", import.meta.env.VITE_FIREBASE_PROJECT_ID || "MISSING");
+
+if (!firebaseConfig.apiKey) {
+  console.error("CRITICAL ERROR: VITE_FIREBASE_API_KEY is missing!");
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 

@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Products: anyone can read, only admin can create/delete
+    // Authenticated users can update ONLY the stock field (for checkout)
+    match /products/{id} {
+      allow read: if true;
+      allow create, delete: if request.auth != null && request.auth.token.email == 'admin@lightsource.co.ke';
+      allow update: if request.auth != null && (
+        (request.auth.token.email == 'admin@lightsource.co.ke') ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']))
+      );
+    }
+
+    // Orders: authenticated users can create, only admin can manage
+    match /orders/{id} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.auth.token.email == 'admin@lightsource.co.ke';
+    }
+
+    // Settings: anyone can read, only admin can write
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'admin@lightsource.co.ke';
+    }
+  }
+}

@@ -21,36 +21,36 @@ const Header = ({ shopName }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-darkBg/95 backdrop-blur-sm border-b border-gray-800">
+    <header className="sticky top-0 z-40 bg-pitchBlack/95 backdrop-blur-sm border-b-2 border-machineGray/50">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl shrink-0 bg-accentOrange flex items-center justify-center font-black text-white shadow-[0_0_20px_rgba(255,107,0,0.3)] group-hover:scale-110 transition-transform">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-sm shrink-0 bg-accentOrange flex items-center justify-center font-black text-white shadow-[0_0_20px_rgba(255,107,0,0.3)] group-hover:rotate-90 transition-transform duration-500">
               {shopName ? shopName.charAt(0) : 'L'}
             </div>
-            <h1 className="text-xl font-black tracking-tighter text-white hidden sm:block uppercase">
+            <h1 className="text-xl font-black tracking-[0.2em] text-white hidden sm:block uppercase font-technical">
               {shopName || "LightSource"}
             </h1>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-sm font-black uppercase tracking-widest text-gray-400 hover:text-white transition">Shop</Link>
-            <Link to="/business" className="text-sm font-black uppercase tracking-widest text-gray-400 hover:text-white transition">Business</Link>
+            <Link to="/" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Shop</Link>
+            <Link to="/business" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Business</Link>
           </nav>
         </div>
 
         <div className="flex items-center gap-4">
           {user ? (
-            <div className="flex items-center gap-3 bg-gray-900/50 p-1.5 pr-4 rounded-full border border-gray-800">
-              <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+            <div className="flex items-center gap-3 bg-machineGray/30 p-1.5 pr-4 rounded-sm border border-machineGray">
+              <div className="w-8 h-8 rounded-sm bg-machineGray/50 flex items-center justify-center">
                 <User className="w-4 h-4 text-accentOrange" />
               </div>
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest truncate max-w-[80px]">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] truncate max-w-[80px]">
                 {user.email.split('@')[0]}
               </span>
               <button 
                 onClick={handleLogout}
-                className="p-1.5 text-gray-600 hover:text-red-400 transition"
+                className="p-1.5 text-gray-600 hover:text-brakeRed transition"
                 title="Sign Out"
               >
                 <LogOut className="w-4 h-4" />
@@ -59,29 +59,29 @@ const Header = ({ shopName }) => {
           ) : (
             <Link 
               to="/login"
-              className="p-2.5 rounded-xl border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 transition"
+              className="p-2.5 rounded-sm border border-machineGray text-gray-400 hover:text-white hover:border-accentOrange transition-all"
               title="Sign In"
             >
               <User className="w-5 h-5" />
             </Link>
           )}
 
-          <div className="h-8 w-px bg-gray-800 mx-2" />
+          <div className="h-10 w-[2px] bg-machineGray/50 mx-2" />
 
           <button 
             onClick={toggleDrawer}
-            className="relative group p-2.5 rounded-xl flex items-center justify-center focus:outline-none transition-all duration-300 hover:bg-gray-800/80 active:scale-95 border border-transparent hover:border-gray-700 bg-gray-900/30"
+            className="relative group p-2.5 rounded-sm flex items-center justify-center focus:outline-none transition-all duration-300 hover:bg-accentOrange/10 active:scale-95 border-2 border-machineGray hover:border-accentOrange"
           >
             <div className="flex items-center gap-3">
               {totalItems > 0 && (
-                <span className="hidden md:block text-xs font-black text-accentOrange">
+                <span className="hidden md:block text-[10px] font-black text-accentOrange font-technical">
                   KES {grandTotal.toLocaleString()}
                 </span>
               )}
               <div className="relative">
-                <ShoppingCart className="w-6 h-6 text-white transition-transform group-hover:-rotate-6" />
+                <ShoppingCart className="w-6 h-6 text-white transition-transform group-hover:scale-110" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-2.5 -right-2.5 bg-accentOrange text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_15px_rgba(255,107,0,0.5)] border-2 border-darkBg animate-in zoom-in duration-300">
+                  <span className="absolute -top-4 -right-4 bg-brakeRed text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-sm shadow-[0_0_15px_rgba(255,0,0,0.5)] border border-white/20 animate-bounce">
                     {totalItems}
                   </span>
                 )}

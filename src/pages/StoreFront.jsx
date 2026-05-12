@@ -4,7 +4,7 @@ import CartDrawer from '../components/shared/CartDrawer';
 import SkeletonCard from '../components/shared/SkeletonCard';
 import { subscribeProducts, subscribeSettings } from '../firebase/products';
 import { useCart } from '../context/CartContext';
-import { Search, Info, Plus, ShoppingCart } from 'lucide-react';
+import { Search, Info, Plus, ShoppingCart, Settings } from 'lucide-react';
 
 const StoreFront = () => {
   const [products, setProducts] = useState([]);
@@ -47,78 +47,83 @@ const StoreFront = () => {
     });
   }, [products, searchQuery, activeCategory]);
 
-  const ProductCard = ({ product }) => {
+  const ProductCard = ({ product, index }) => {
     const isOutOfStock = product.stock <= 0;
     const cartItem = cartItems.find(item => item.id === product.id);
     const inCartQty = cartItem ? cartItem.quantity : 0;
     const maxReached = inCartQty >= product.stock;
 
     return (
-      <div className="bg-gray-800/30 rounded-[2rem] overflow-hidden border border-gray-700/50 hover:border-accentOrange/40 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(255,107,0,0.1)] flex flex-col group relative">
-        {/* Badge for items in cart */}
+      <div 
+        className="bg-machineGray/10 rounded-sm overflow-hidden border-2 border-machineGray/50 hover:border-accentOrange transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,107,0,0.1)] flex flex-col group relative animate-mechanical-slide"
+        style={{ animationDelay: `${index * 50}ms` }}
+      >
+        {/* Serial Number look-alike */}
+        <div className="absolute top-0 left-0 z-30 bg-machineGray text-[8px] font-black px-2 py-0.5 text-gray-500 uppercase font-technical">
+          REF-{product.id.slice(0, 8)}
+        </div>
+
         {inCartQty > 0 && (
-          <div className="absolute top-4 right-4 z-20 bg-accentOrange text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg border border-white/20 animate-in fade-in zoom-in duration-500">
-            {inCartQty} IN CART
+          <div className="absolute top-4 right-4 z-20 bg-accentOrange text-white text-[9px] font-black px-3 py-1 rounded-sm shadow-lg border border-white/20 animate-bounce">
+            {inCartQty} UNIT(S) RESERVED
           </div>
         )}
 
-        <div className="relative h-64 bg-gray-900 overflow-hidden flex items-center justify-center">
+        <div className="relative h-64 bg-pitchBlack overflow-hidden flex items-center justify-center border-b border-machineGray/50">
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
               alt={product.name} 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
             />
           ) : (
-            <div className="flex flex-col items-center gap-2 opacity-20">
-              <ShoppingCart className="w-12 h-12" />
-              <span className="text-[10px] font-black uppercase tracking-widest">No Image Available</span>
+            <div className="flex flex-col items-center gap-2 opacity-10">
+              <Settings className="w-16 h-16 animate-spin-slow" />
+              <span className="text-[8px] font-black uppercase tracking-[0.4em]">Hardware Asset</span>
             </div>
           )}
           
-          {/* Overlay gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-pitchBlack via-transparent to-transparent opacity-80" />
 
           <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 justify-between items-center z-10">
-            <div className="bg-darkBg/60 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-black text-white/90 border border-gray-700/50 uppercase tracking-widest">
-              {product.category || 'Standard'}
+            <div className="bg-machineGray/80 backdrop-blur-md px-3 py-1 rounded-sm text-[9px] font-black text-white border border-white/10 uppercase tracking-[0.2em] font-technical">
+              {product.category || 'GENUINE PART'}
             </div>
             
-            <div className={`px-3 py-1 rounded-lg text-[10px] font-black shadow-lg flex items-center gap-1.5 uppercase tracking-widest ${
-              isOutOfStock ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'
+            <div className={`px-3 py-1 rounded-sm text-[9px] font-black shadow-lg flex items-center gap-2 uppercase tracking-[0.2em] ${
+              isOutOfStock ? 'bg-brakeRed/20 text-brakeRed border border-brakeRed/30' : 'bg-machineryGreen/20 text-machineryGreen border border-machineryGreen/30'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
-              {isOutOfStock ? 'Out of Stock' : 'Available'}
+              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-brakeRed' : 'bg-machineryGreen'}`} />
+              {isOutOfStock ? 'Depleted' : 'Operational'}
             </div>
           </div>
         </div>
 
-        <div className="p-6 flex flex-col flex-1 relative bg-gradient-to-b from-gray-800/10 to-transparent">
-          <div className="mb-4">
-            <h3 className="text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight">
+        <div className="p-6 flex flex-col flex-1 relative">
+          <div className="mb-6">
+            <h3 className="text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight font-technical uppercase tracking-tighter">
               {product.name}
             </h3>
             
             {product.description && (
-              <p className="text-gray-400 text-sm mt-3 line-clamp-2 leading-relaxed font-medium">
+              <p className="text-gray-500 text-xs mt-4 line-clamp-3 leading-relaxed font-utilitarian uppercase tracking-wide border-l-2 border-machineGray pl-4">
                 {product.description}
               </p>
             )}
           </div>
 
-          <div className="mt-auto flex flex-wrap items-end justify-between gap-4">
+          <div className="mt-auto flex items-end justify-between border-t border-machineGray/30 pt-6">
             <div>
-              <span className="text-[10px] text-gray-500 uppercase font-black block tracking-widest mb-1">Price</span>
-              <span className="text-2xl font-black text-white tracking-tighter">
+              <span className="text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">MSRP / Unit</span>
+              <span className="text-2xl font-black text-white font-technical">
                 <span className="text-accentOrange text-sm mr-1">KES</span>
                 {product.price.toLocaleString()}
               </span>
             </div>
             <div className="text-right">
-              <span className={`px-3 py-1 rounded-lg text-[10px] font-black shadow-lg flex items-center gap-1.5 uppercase tracking-widest ${
-                isOutOfStock ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'
-              }`}>
-                {isOutOfStock ? 'Sold Out' : 'In Stock'}
+              <span className="text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">Status</span>
+              <span className={`text-[10px] font-black uppercase tracking-widest ${isOutOfStock ? 'text-brakeRed' : 'text-machineryGreen'}`}>
+                {isOutOfStock ? 'Out of Stock' : `Stock: ${product.stock}`}
               </span>
             </div>
           </div>
@@ -126,21 +131,21 @@ const StoreFront = () => {
           <button
             disabled={isOutOfStock || maxReached}
             onClick={() => addToCart(product)}
-            className={`mt-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest w-full flex justify-center items-center gap-2 transition-all duration-500 ${
+            className={`mt-8 py-4 rounded-sm font-black text-[10px] uppercase tracking-[0.3em] w-full flex justify-center items-center gap-3 transition-all duration-300 font-technical ${
               isOutOfStock 
-                ? 'bg-gray-800 text-gray-600 cursor-not-allowed border border-gray-700'
+                ? 'bg-machineGray/20 text-gray-700 cursor-not-allowed border border-machineGray/50'
                 : maxReached
-                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-600'
-                  : 'bg-accentOrange hover:bg-orange-600 text-white shadow-[0_10px_30px_rgba(255,107,0,0.3)] hover:shadow-[0_15px_40px_rgba(255,107,0,0.5)] transform hover:-translate-y-1 active:scale-95'
+                  ? 'bg-machineGray/40 text-gray-500 cursor-not-allowed border border-machineGray'
+                  : 'bg-accentOrange hover:bg-orange-600 text-white shadow-[0_10px_30px_rgba(255,107,0,0.2)] hover:shadow-[0_15px_40px_rgba(255,107,0,0.4)] transform hover:scale-[1.02] active:scale-95'
             }`}
           >
             {isOutOfStock 
-              ? 'Sold Out' 
+              ? 'ITEM DEPLETED' 
               : maxReached 
-                ? 'Max in Cart' 
+                ? 'INVENTORY LIMIT' 
                 : (
                   <>
-                    Add To Cart
+                    Acquire Part
                     <Plus className="w-4 h-4" />
                   </>
                 )}
@@ -151,36 +156,48 @@ const StoreFront = () => {
   };
 
   return (
-    <div className="min-h-screen bg-darkBg text-white flex flex-col font-poppins selection:bg-accentOrange/30">
+    <div className="min-h-screen bg-pitchBlack text-white flex flex-col font-utilitarian selection:bg-accentOrange/30">
       <Header shopName={settings?.shopName} />
       <CartDrawer whatsappNumber={settings?.whatsappNumber} />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-16 md:py-24 border-b border-gray-800/50">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accentOrange/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
+      <section className="relative overflow-hidden py-24 md:py-32 border-b-2 border-machineGray">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-accentOrange/5 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-white/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
         
-        <div className="container mx-auto px-4 relative z-10 text-center md:text-left">
-          <div className="max-w-3xl">
-            <span className="inline-block bg-accentOrange/10 text-accentOrange text-[10px] font-black px-4 py-1.5 rounded-full border border-accentOrange/20 uppercase tracking-[0.3em] mb-6">
-              Genuine Motorbike Spare Parts
-            </span>
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white leading-tight mb-8 tracking-tighter">
-              Performance <span className="text-accentOrange">Meets</span> <br className="hidden md:block" /> Reliability.
+        {/* Background Grid Lines */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+             style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl">
+            <div className="flex items-center gap-4 mb-8">
+              <span className="h-[2px] w-12 bg-accentOrange" />
+              <span className="text-accentOrange text-[10px] font-black uppercase tracking-[0.5em] font-technical">
+                Precision Hardware Supply
+              </span>
+            </div>
+            
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-black text-white leading-[0.9] mb-12 tracking-tighter font-technical uppercase">
+              Engineered <br /> <span className="text-accentOrange">To Endure.</span>
             </h1>
-            <p className="text-gray-400 text-lg md:text-xl font-medium max-w-xl mb-10 leading-relaxed">
-              Find the perfect parts for your ride. We provide high-quality spare parts and accessories with fast delivery across the country.
+            
+            <p className="text-gray-500 text-lg md:text-xl font-medium max-w-2xl mb-12 leading-relaxed uppercase tracking-tight">
+              Direct procurement of genuine motorbike spare parts. <br className="hidden md:block" /> 
+              Industrial grade reliability for professional performance.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="relative flex-1 max-w-lg">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center">
+                  <Search className="w-4 h-4 text-gray-600" />
+                </div>
                 <input
                   type="text"
-                  placeholder="Search by part name or category..."
+                  placeholder="SEARCH COMPONENT CATALOG..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800/40 border border-gray-700/50 rounded-2xl py-4 sm:py-5 pl-12 pr-6 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accentOrange/50 focus:border-accentOrange transition-all backdrop-blur-md shadow-2xl"
+                  className="w-full bg-machineGray/20 border-2 border-machineGray rounded-sm py-5 pl-12 pr-6 text-white placeholder-gray-700 focus:outline-none focus:border-accentOrange transition-all font-technical text-xs tracking-widest uppercase shadow-2xl"
                 />
               </div>
             </div>
@@ -188,23 +205,23 @@ const StoreFront = () => {
         </div>
       </section>
 
-      <main className="flex-1 container mx-auto px-4 py-12 max-w-7xl">
+      <main className="flex-1 container mx-auto px-4 py-20 max-w-7xl">
         {/* Filter Section */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="mb-20 flex flex-col md:flex-row md:items-end justify-between gap-12 border-b border-machineGray/30 pb-12">
           <div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-wider mb-1">Our Collection</h2>
-            <p className="text-gray-500 text-sm font-medium">Browse through {products.length} available items</p>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter font-technical mb-2">Available Inventory</h2>
+            <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.3em] font-technical">Total Stock Items: {products.length}</p>
           </div>
 
-          <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar scroll-smooth">
+          <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar scroll-smooth">
             {categories.map((category) => (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300 border ${
+                className={`px-8 py-4 rounded-sm text-[10px] font-black uppercase tracking-[0.4em] whitespace-nowrap transition-all duration-300 border-2 font-technical ${
                   activeCategory === category
-                    ? 'bg-accentOrange text-white border-accentOrange shadow-[0_10px_20px_rgba(255,107,0,0.2)]'
-                    : 'bg-gray-800/30 text-gray-400 border-gray-700 hover:bg-gray-800 hover:text-gray-200'
+                    ? 'bg-accentOrange text-white border-accentOrange shadow-[0_10px_25px_rgba(255,107,0,0.3)]'
+                    : 'bg-transparent text-gray-500 border-machineGray hover:border-accentOrange hover:text-white'
                 }`}
               >
                 {category}
@@ -215,52 +232,48 @@ const StoreFront = () => {
 
         {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
-            {filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
+            {filteredProducts.map((product, index) => (
+              <ProductCard key={product.id} product={product} index={index} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-32 bg-gray-900/30 rounded-[3rem] border border-gray-800/50 flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-accentOrange/5 rounded-full blur-3xl opacity-20" />
-            <div className="w-24 h-24 bg-gray-800 flex items-center justify-center mb-8 rounded-[2rem] shadow-inner rotate-12 group hover:rotate-0 transition-transform duration-500">
-              <Search className="w-10 h-10 text-gray-600 group-hover:text-accentOrange transition-colors" />
+          <div className="text-center py-40 border-2 border-dashed border-machineGray rounded-sm flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="w-24 h-24 bg-machineGray/20 flex items-center justify-center mb-10 rounded-sm border border-machineGray rotate-45">
+              <Search className="w-10 h-10 text-gray-700 -rotate-45" />
             </div>
-            <h2 className="text-3xl font-black text-gray-300 mb-4">No parts found</h2>
-            <p className="text-gray-500 max-w-md mx-auto font-medium mb-10 leading-relaxed px-6">
-              We couldn't find any items matching your current filters. Try adjusting your search or category.
+            <h2 className="text-3xl font-black text-white font-technical uppercase tracking-tighter mb-4">No Inventory Matches</h2>
+            <p className="text-gray-600 max-w-sm mx-auto font-black text-[10px] uppercase tracking-[0.2em] mb-12 px-6 font-technical">
+              Refine your search parameters or select a different category.
             </p>
             {(searchQuery || activeCategory !== 'All') && (
               <button 
                 onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
-                className="bg-accentOrange hover:bg-orange-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl hover:shadow-accentOrange/20 active:scale-95"
+                className="bg-transparent border-2 border-accentOrange text-accentOrange hover:bg-accentOrange hover:text-white px-12 py-5 rounded-sm font-black text-[10px] uppercase tracking-[0.4em] transition-all font-technical"
               >
-                Reset Search
+                Reset Filters
               </button>
             )}
           </div>
         )}
       </main>
 
-      <footer className="border-t border-gray-800 py-12 bg-black/40 text-center mt-auto">
+      <footer className="border-t-2 border-machineGray py-20 bg-pitchBlack text-center mt-auto">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-12 h-12 rounded-2xl bg-accentOrange flex items-center justify-center font-black text-white shadow-xl shadow-accentOrange/20 text-xl">
+          <div className="flex flex-col items-center gap-8">
+            <div className="w-16 h-16 rounded-sm bg-accentOrange flex items-center justify-center font-black text-white shadow-2xl shadow-accentOrange/20 text-3xl font-technical">
               {settings?.shopName ? settings.shopName.charAt(0) : 'L'}
             </div>
-            <h2 className="text-white font-black text-xl tracking-tight">
+            <h2 className="text-white font-black text-2xl tracking-[0.3em] font-technical uppercase">
               {settings.shopName || "LightSource Motors"}
             </h2>
-            <p className="text-gray-500 text-sm max-w-sm leading-relaxed">
-              Premium motorbike spare parts and high-quality accessories delivered to your doorstep.
-            </p>
-            <div className="h-px w-24 bg-gray-800" />
-            <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.3em]">
-              &copy; {new Date().getFullYear()} {settings.shopName || "LightSource Motors"}. All rights reserved.
+            <div className="h-[2px] w-24 bg-accentOrange" />
+            <p className="text-gray-600 text-[9px] font-black uppercase tracking-[0.5em] font-technical">
+              &copy; {new Date().getFullYear()} {settings.shopName || "LightSource Motors"} // Industrial Logistics
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { processManualSale } from '../../firebase/products';
@@ -12,6 +12,19 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
+
+  // Reset all state when the modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setShowReceipt(false);
+      setLastOrder(null);
+      setCart([]);
+      setCustomerName('Walk-in Customer');
+      setPaymentType('Cash');
+      setPaymentStatus('Paid');
+      setSearchQuery('');
+    }
+  }, [isOpen]);
 
   // Filter products that have stock > 0 and match search
   const filteredProducts = useMemo(() => {

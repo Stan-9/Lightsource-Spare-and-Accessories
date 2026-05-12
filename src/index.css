@@ -4,21 +4,63 @@
 
 @layer base {
   body {
-    @apply bg-darkBg text-white font-poppins;
+    @apply bg-pitchBlack text-white font-utilitarian;
+    position: relative;
+  }
+
+  /* Industrial Noise Grain Overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    opacity: 0.03;
+    z-index: 9999;
+    pointer-events: none;
+    background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+    filter: contrast(150%) brightness(100%);
   }
 }
 
-/* Custom scrollbar for better look */
+/* Tire Tread Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: #0A0A0A;
+  border-left: 1px solid #1A1A1A;
 }
 ::-webkit-scrollbar-thumb {
-  background: #33334d;
-  border-radius: 4px;
+  background: linear-gradient(
+    45deg,
+    #2D2D2D 25%,
+    #1A1A1A 25%,
+    #1A1A1A 50%,
+    #2D2D2D 50%,
+    #2D2D2D 75%,
+    #1A1A1A 75%,
+    #1A1A1A 100%
+  );
+  background-size: 8px 8px;
+  border: 2px solid #0A0A0A;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #ff6b00;
+  background: linear-gradient(
+    45deg,
+    #FF6B00 25%,
+    #E65100 25%,
+    #E65100 50%,
+    #FF6B00 50%,
+    #FF6B00 75%,
+    #E65100 75%,
+    #E65100 100%
+  );
+  background-size: 8px 8px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

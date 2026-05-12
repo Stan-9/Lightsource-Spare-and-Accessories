@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  subscribeProducts, 
-  deleteProduct, 
-  updateProductStock, 
-  getSettings, 
+import {
+  subscribeProducts,
+  deleteProduct,
+  updateProductStock,
+  updateProduct,
+  getSettings,
   updateSettings,
   subscribeOrders,
   subscribeCategories,
   updateCategoriesList,
   updateOrderStatus,
-  updateOrderPayment
+  updateOrderPayment,
 } from '../firebase/products';
+import ConfirmModal from '../components/shared/ConfirmModal';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
@@ -49,9 +51,29 @@ const AdminDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+  // Bulk restock state: { [productId]: inputValue }
+  const [restockInputs, setRestockInputs] = useState({});
 
   // Categories State
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Confirm modal state
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+  const openConfirm = (title, message, onConfirm) =>
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  const closeConfirm = () =>
+    setConfirmModal(prev => ({ ...prev, isOpen: false, onConfirm: null }));
+
+  // Overview date range filter
+  const [dateRange, setDateRange] = useState('all'); // all | today | week | month
+
+  // Orders tab filters
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState('all');
+
+  // Reprint receipt state
+  const [reprintOrder, setReprintOrder] = useState(null);
 
   const navigate = useNavigate();
 
@@ -101,15 +123,20 @@ const AdminDashboard = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteProduct = async (id, name, imageUrl) => {
-    if (window.confirm(`Delete ${name}? This cannot be undone.`)) {
-      try {
-        await deleteProduct(id, imageUrl);
-        toast.success(`${name} deleted successfully`);
-      } catch (error) {
-        toast.error("Failed to delete product");
+  const handleDeleteProduct = (id, name, imageUrl) => {
+    openConfirm(
+      `Delete "${name}"?`,
+      'This action cannot be undone. The product will be permanently removed from your inventory.',
+      async () => {
+        closeConfirm();
+        try {
+          await deleteProduct(id, imageUrl);
+          toast.success(`${name} deleted`);
+        } catch (error) {
+          toast.error('Failed to delete product');
+        }
       }
-    }
+    );
   };
 
   const handleStockUpdate = async (id, currentStock, change) => {
@@ -177,15 +204,37 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteCategory = async (name) => {
-    if (window.confirm(`Remove category "${name}"? Existing products will still keep this category until updated.`)) {
-      const newList = categories.filter(c => c !== name);
-      try {
-        await updateCategoriesList(newList);
-        toast.success("Category removed");
-      } catch (e) {
-        toast.error("Failed to remove category");
+  const handleDeleteCategory = (name) => {
+    openConfirm(
+      `Remove "${name}"?`,
+      'Existing products will keep this category tag until you manually update them.',
+      async () => {
+        closeConfirm();
+        const newList = categories.filter(c => c !== name);
+        try {
+          await updateCategoriesList(newList);
+          toast.success('Category removed');
+        } catch (e) {
+          toast.error('Failed to remove category');
+        }
       }
+    );
+  };
+
+  // Bulk restock: set exact stock from the restock input
+  const handleBulkRestock = async (product) => {
+    const inputVal = parseInt(restockInputs[product.id] || '0', 10);
+    if (isNaN(inputVal) || inputVal < 1) {
+      toast.error('Enter a valid quantity to add');
+      return;
+    }
+    const newStock = product.stock + inputVal;
+    try {
+      await updateProductStock(product.id, newStock);
+      setRestockInputs(prev => ({ ...prev, [product.id]: '' }));
+      toast.success(`Restocked +${inputVal} units (now ${newStock})`);
+    } catch {
+      toast.error('Failed to update stock');
     }
   };
 
@@ -210,27 +259,48 @@ const AdminDashboard = () => {
     toast.success("Inventory exported!");
   };
 
+  // Date-range helper
+  const filterByDateRange = (ordersList) => {
+    if (dateRange === 'all') return ordersList;
+    const now = new Date();
+    return ordersList.filter(o => {
+      const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+      if (dateRange === 'today') {
+        return d.toDateString() === now.toDateString();
+      }
+      if (dateRange === 'week') {
+        const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+        return d >= weekAgo;
+      }
+      if (dateRange === 'month') {
+        const monthAgo = new Date(now); monthAgo.setMonth(now.getMonth() - 1);
+        return d >= monthAgo;
+      }
+      return true;
+    });
+  };
+
   // Derived state
   const stats = useMemo(() => {
     const total = products.length;
     const inStock = products.filter(p => p.stock > 0).length;
     const outOfStock = products.filter(p => p.stock <= 0).length;
     const lowStock = products.filter(p => p.stock > 0 && p.stock < 5).length;
-    
+
     // Inventory Valuation
     const inventoryValueRetail = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
     const inventoryValueCost = products.reduce((acc, p) => acc + ((p.buyingPrice || 0) * p.stock), 0);
     const potentialProfit = inventoryValueRetail - inventoryValueCost;
 
-    // Sales Performance (Only Completed Orders)
-    const completedOrders = orders.filter(o => o.status === 'completed');
-    const actualSales = completedOrders.reduce((acc, o) => acc + o.total, 0);
-    
-    // Profit Calculation (Needs items to have buyingPrice at time of order, for now using current)
+    // Apply date range to orders for stats
+    const rangedOrders = filterByDateRange(orders);
+    const completedOrders = rangedOrders.filter(o => o.status === 'completed');
+    const actualSales = completedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+
+    // Use buyingPrice snapshot stored per item in order (historically accurate)
     const actualProfit = completedOrders.reduce((acc, o) => {
-      const orderProfit = o.items.reduce((itemAcc, item) => {
-        const product = products.find(p => p.id === item.id);
-        const cost = product?.buyingPrice || 0;
+      const orderProfit = (o.items || []).reduce((itemAcc, item) => {
+        const cost = item.buyingPrice || 0;
         return itemAcc + ((item.price - cost) * (item.quantity || 1));
       }, 0);
       return acc + orderProfit;
@@ -239,17 +309,16 @@ const AdminDashboard = () => {
     // Most/Least Sold
     const itemSales = {};
     completedOrders.forEach(o => {
-      o.items.forEach(item => {
+      (o.items || []).forEach(item => {
         itemSales[item.name] = (itemSales[item.name] || 0) + (item.quantity || 1);
       });
     });
-
     const sortedSales = Object.entries(itemSales).sort((a, b) => b[1] - a[1]);
-    const topPerformer = sortedSales[0] || ["None", 0];
-    const leastPerformer = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1] : ["None", 0];
+    const topPerformer = sortedSales[0] || ['None', 0];
+    const leastPerformer = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1] : ['None', 0];
 
-    return { 
-      total, inStock, outOfStock, lowStock, 
+    return {
+      total, inStock, outOfStock, lowStock,
       totalValue: inventoryValueRetail,
       inventoryCost: inventoryValueCost,
       potentialProfit,
@@ -258,7 +327,7 @@ const AdminDashboard = () => {
       topPerformer,
       leastPerformer
     };
-  }, [products, orders]);
+  }, [products, orders, dateRange]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -340,10 +409,27 @@ const AdminDashboard = () => {
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4 flex items-center gap-3">
+            <h2 className="text-3xl font-bold text-white mb-4 border-b border-gray-800 pb-4 flex items-center gap-3">
               Store Statistics
               <LayoutDashboard className="w-6 h-6 text-accentOrange opacity-50" />
             </h2>
+
+            {/* Date Range Filter */}
+            <div className="flex items-center gap-2 mb-8">
+              {['all', 'today', 'week', 'month'].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setDateRange(r)}
+                  className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition ${
+                    dateRange === r
+                      ? 'bg-accentOrange text-white shadow-lg shadow-accentOrange/20'
+                      : 'bg-gray-800 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {r === 'all' ? 'All Time' : r === 'today' ? 'Today' : r === 'week' ? 'This Week' : 'This Month'}
+                </button>
+              ))}
+            </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
               <div className="col-span-1 lg:col-span-4 bg-gradient-to-r from-accentOrange/20 to-transparent border border-accentOrange/30 p-8 rounded-3xl relative overflow-hidden">
@@ -532,6 +618,7 @@ const AdminDashboard = () => {
                       <th className="p-4">Retail (Selling)</th>
                       <th className="p-4">Total Profit (Est)</th>
                       <th className="p-4 w-40">Stock Check</th>
+                      <th className="p-4 w-36">Restock</th>
                       <th className="p-4 text-center">Storefront</th>
                       <th className="p-4 text-center w-32">Actions</th>
                     </tr>
@@ -624,6 +711,25 @@ const AdminDashboard = () => {
                               </button>
                             </div>
                           </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              {/* Bulk restock input */}
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="+qty"
+                                value={restockInputs[p.id] || ''}
+                                onChange={e => setRestockInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                className="w-16 text-center text-sm bg-gray-900 border border-gray-700 rounded-lg py-1 focus:outline-none focus:border-accentOrange text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                              <button
+                                onClick={() => handleBulkRestock(p)}
+                                className="px-2 py-1 bg-accentOrange/10 text-accentOrange border border-accentOrange/30 rounded-lg text-[10px] font-black uppercase hover:bg-accentOrange hover:text-white transition"
+                              >
+                                Add
+                              </button>
+                            </div>
+                          </td>
                           <td className="p-4 text-center">
                             <button
                               onClick={() => handleToggleVisibility(p)}
@@ -677,6 +783,39 @@ const AdminDashboard = () => {
                 Record Physical Sale
               </button>
             </div>
+
+            {/* Search + Filters */}
+            <div className="flex flex-wrap gap-3 mb-6">
+              <div className="relative flex-1 min-w-48">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search by customer or item..."
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-accentOrange transition"
+                />
+              </div>
+              <select
+                value={orderStatusFilter}
+                onChange={e => setOrderStatusFilter(e.target.value)}
+                className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-accentOrange"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <select
+                value={orderPaymentFilter}
+                onChange={e => setOrderPaymentFilter(e.target.value)}
+                className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-accentOrange"
+              >
+                <option value="all">All Payments</option>
+                <option value="Cash">Cash / Mpesa</option>
+                <option value="Credit">Credit</option>
+              </select>
+            </div>
             
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex-1 flex flex-col shadow-xl">
               <div className="overflow-x-auto flex-1 md:h-0">
@@ -684,20 +823,27 @@ const AdminDashboard = () => {
                   <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
                     <tr>
                       <th className="p-4">Time</th>
+                      <th className="p-4">Customer</th>
                       <th className="p-4">Items</th>
                       <th className="p-4">Grand Total</th>
                       <th className="p-4">Action</th>
+                      <th className="p-4 text-center">Receipt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/50">
-                    {orders.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" className="p-12 text-center text-gray-500 italic">
-                          No order attempts recorded yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      orders.map((order) => (
+                    {(() => {
+                      const filtered = orders.filter(o => {
+                        const matchSearch = !orderSearch ||
+                          (o.customerName || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
+                          (o.items || []).some(i => i.name?.toLowerCase().includes(orderSearch.toLowerCase()));
+                        const matchStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+                        const matchPayment = orderPaymentFilter === 'all' || o.paymentType === orderPaymentFilter;
+                        return matchSearch && matchStatus && matchPayment;
+                      });
+                      if (filtered.length === 0) return (
+                        <tr><td colSpan="6" className="p-12 text-center text-gray-500 italic">No orders match your filters.</td></tr>
+                      );
+                      return filtered.map((order) => (
                         <tr key={order.id} className="hover:bg-gray-800/30 transition group">
                           <td className="p-4">
                             <div className="flex flex-col">
@@ -707,6 +853,12 @@ const AdminDashboard = () => {
                               <span className="text-xs text-gray-500">
                                 {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleTimeString() : ''}
                               </span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm text-white">{order.customerName || '—'}</span>
+                              {order.phone && <span className="text-[10px] text-gray-500">{order.phone}</span>}
                             </div>
                           </td>
                           <td className="p-4">
@@ -722,38 +874,45 @@ const AdminDashboard = () => {
                             <span className="font-black text-white italic">KES {(order.total || 0).toLocaleString()}</span>
                           </td>
                           <td className="p-4">
-                             <div className="flex flex-col gap-2">
-                               <select 
-                                 value={order.status} 
-                                 onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                                 className={`text-[10px] font-black uppercase px-2 py-1 rounded border transition ${
-                                   order.status === 'completed' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
-                                   order.status === 'cancelled' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
-                                   'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
-                                 }`}
-                               >
-                                 <option value="pending">Pending</option>
-                                 <option value="completed">Completed</option>
-                                 <option value="cancelled">Cancelled</option>
-                               </select>
-
-                               <select 
-                                 value={order.paymentType || 'Cash'} 
-                                 onChange={(e) => {
-                                   const newType = e.target.value;
-                                   const newStatus = newType === 'Credit' ? 'Unpaid' : 'Paid';
-                                   handleUpdateOrderPayment(order.id, newStatus, newType);
-                                 }}
-                                 className="text-[10px] font-black uppercase px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400"
-                               >
-                                 <option value="Cash">Cash</option>
-                                 <option value="Credit">Credit</option>
-                               </select>
-                             </div>
+                            <div className="flex flex-col gap-2">
+                              <select
+                                value={order.status}
+                                onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                className={`text-[10px] font-black uppercase px-2 py-1 rounded border transition ${
+                                  order.status === 'completed' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
+                                  order.status === 'cancelled' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
+                                  'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
+                                }`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                              <select
+                                value={order.paymentType || 'Cash'}
+                                onChange={(e) => {
+                                  const newType = e.target.value;
+                                  handleUpdateOrderPayment(order.id, newType === 'Credit' ? 'Unpaid' : 'Paid', newType);
+                                }}
+                                className="text-[10px] font-black uppercase px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400"
+                              >
+                                <option value="Cash">Cash/Mpesa</option>
+                                <option value="Credit">Credit</option>
+                              </select>
+                            </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => setReprintOrder(order)}
+                              className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-accentOrange/20 border border-transparent hover:border-accentOrange/30 rounded-lg transition"
+                              title="Reprint Receipt"
+                            >
+                              🖨️
+                            </button>
                           </td>
                         </tr>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -919,18 +1078,70 @@ const AdminDashboard = () => {
       </main>
 
       {/* Modals */}
-      <ProductModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         product={editingProduct}
         categories={categories}
       />
-      
+
       <ManualSaleModal
         isOpen={isSaleModalOpen}
         onClose={() => setIsSaleModalOpen(false)}
         products={products}
       />
+
+      {/* Confirm Modal (replaces window.confirm) */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel="Confirm"
+        confirmClassName="bg-red-500 hover:bg-red-600 text-white"
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+      />
+
+      {/* Reprint Receipt Modal */}
+      {reprintOrder && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setReprintOrder(null)}>
+          <div className="bg-white text-black font-mono max-w-sm w-full rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
+              <h3 className="font-black text-gray-800">Reprint Receipt</h3>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()} className="bg-accentOrange text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-orange-600 transition">🖨️ Print</button>
+                <button onClick={() => setReprintOrder(null)} className="bg-gray-200 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-300 transition">Close</button>
+              </div>
+            </div>
+            <div id="receipt-content" className="p-6">
+              <div className="text-center mb-4">
+                <h1 className="text-lg font-black uppercase tracking-tighter">LIGHTSOURCE MOTORS</h1>
+                <p className="text-[10px] text-gray-500">Performance & Reliability</p>
+                <div className="h-px bg-gray-200 my-3" />
+                <p className="text-xs font-bold uppercase">Official Receipt</p>
+                <p className="text-[10px] text-gray-400">{reprintOrder.createdAt?.toDate ? reprintOrder.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</p>
+              </div>
+              <div className="space-y-1 mb-4 text-[10px]">
+                {reprintOrder.customerName && <div className="flex justify-between"><span className="font-bold">Customer:</span><span>{reprintOrder.customerName}</span></div>}
+                {reprintOrder.phone && <div className="flex justify-between"><span className="font-bold">Phone:</span><span>{reprintOrder.phone}</span></div>}
+                <div className="flex justify-between"><span className="font-bold">Payment:</span><span>{reprintOrder.paymentType} ({reprintOrder.paymentStatus || 'Paid'})</span></div>
+              </div>
+              <table className="w-full text-[10px] border-t border-b border-black py-2 my-2">
+                <thead><tr className="font-black uppercase"><th className="text-left pb-1">Item</th><th className="text-center">Qty</th><th className="text-right">Total</th></tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(reprintOrder.items || []).map((item, i) => (
+                    <tr key={i}><td className="py-1 pr-2">{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-right">{((item.price||0)*(item.quantity||1)).toLocaleString()}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex justify-between font-black text-sm mt-3">
+                <span>TOTAL</span><span>KES {(reprintOrder.total||0).toLocaleString()}</span>
+              </div>
+              <p className="text-center text-[9px] text-gray-400 mt-4 uppercase tracking-widest">Thank you for your business!</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

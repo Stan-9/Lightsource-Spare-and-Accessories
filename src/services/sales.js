@@ -6,7 +6,8 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  runTransaction
+  runTransaction,
+  updateDoc
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
@@ -109,6 +110,20 @@ export const updateOrderStatus = async (orderId, status) => {
     return result(true);
   } catch (error) {
     console.error("Error updating order status: ", error);
+    return result(false, null, error.message);
+  }
+};
+
+export const updateOrderPayment = async (orderId, paymentStatus, paymentType) => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, { 
+      paymentStatus,
+      paymentType: paymentType || 'Cash' 
+    });
+    return result(true);
+  } catch (error) {
+    console.error("Error updating order payment: ", error);
     return result(false, null, error.message);
   }
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   subscribeProducts,
   deleteProduct,
@@ -37,6 +37,27 @@ import {
 } from 'lucide-react';
 import ProductModal from '../components/admin/ProductModal';
 import ManualSaleModal from '../components/admin/ManualSaleModal';
+
+const NavButton = ({ id, icon: Icon, label, badge = null, activeTab, setActiveTab }) => (
+  <button
+    onClick={() => setActiveTab(id)}
+    className={`shrink-0 md:w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium group ${
+      activeTab === id 
+        ? 'bg-accentOrange/10 text-accentOrange md:shadow-[inset_2px_0_0_0_#FF6B00]' 
+        : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
+    }`}
+  >
+    <div className="flex items-center gap-2 md:gap-3">
+      <Icon className={`w-5 h-5 ${activeTab === id ? 'text-accentOrange' : 'group-hover:text-gray-200'}`} />
+      <span className="whitespace-nowrap truncate">{label}</span>
+    </div>
+    {badge !== null && (
+      <span className={`ml-3 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${activeTab === id ? 'bg-accentOrange text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
+        {badge}
+      </span>
+    )}
+  </button>
+);
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, creditors, settings
@@ -260,7 +281,7 @@ const AdminDashboard = () => {
   };
 
   // Date-range helper
-  const filterByDateRange = (ordersList) => {
+  const filterByDateRange = useCallback((ordersList) => {
     if (dateRange === 'all') return ordersList;
     const now = new Date();
     return ordersList.filter(o => {
@@ -278,7 +299,7 @@ const AdminDashboard = () => {
       }
       return true;
     });
-  };
+  }, [dateRange]);
 
   // Derived state
   const stats = useMemo(() => {
@@ -327,33 +348,11 @@ const AdminDashboard = () => {
       topPerformer,
       leastPerformer
     };
-  }, [products, orders, dateRange]);
+  }, [products, orders, dateRange, filterByDateRange]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
-
-
-  const NavButton = ({ id, icon: Icon, label, badge = null }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`shrink-0 md:w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium group ${
-        activeTab === id 
-          ? 'bg-accentOrange/10 text-accentOrange md:shadow-[inset_2px_0_0_0_#FF6B00]' 
-          : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
-      }`}
-    >
-      <div className="flex items-center gap-2 md:gap-3">
-        <Icon className={`w-5 h-5 ${activeTab === id ? 'text-accentOrange' : 'group-hover:text-gray-200'}`} />
-        <span className="whitespace-nowrap truncate">{label}</span>
-      </div>
-      {badge !== null && (
-        <span className={`ml-3 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${activeTab === id ? 'bg-accentOrange text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
-          {badge}
-        </span>
-      )}
-    </button>
-  );
 
   return (
     <div className="min-h-screen bg-darkBg text-gray-200 flex flex-col md:flex-row font-poppins selection:bg-accentOrange/30">
@@ -380,16 +379,17 @@ const AdminDashboard = () => {
         </div>
 
         <nav className="flex md:flex-col p-2 md:p-4 gap-2 md:gap-0 md:space-y-2 overflow-x-auto md:overflow-y-auto no-scrollbar md:flex-1">
-          <NavButton id="overview" icon={LayoutDashboard} label="Overview" />
-          <NavButton id="products" icon={Package} label="Inventory" badge={products.length} />
-          <NavButton id="orders" icon={ShoppingCart} label="Orders Log" badge={orders.length} />
+          <NavButton id="overview" icon={LayoutDashboard} label="Overview" activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavButton id="products" icon={Package} label="Inventory" badge={products.length} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavButton id="orders" icon={ShoppingCart} label="Orders Log" badge={orders.length} activeTab={activeTab} setActiveTab={setActiveTab} />
           <NavButton 
             id="creditors" 
             icon={TrendingDown} 
             label="Creditors" 
             badge={orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').length} 
+            activeTab={activeTab} setActiveTab={setActiveTab}
           />
-          <NavButton id="settings" icon={Settings} label="Settings" />
+          <NavButton id="settings" icon={Settings} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} />
         </nav>
 
         <div className="hidden md:block p-4 border-t border-gray-800 bg-gray-900/50">

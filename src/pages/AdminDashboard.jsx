@@ -129,7 +129,7 @@ const AdminDashboard = () => {
     try {
       await signOut(auth);
       navigate('/admin/login');
-    } catch (error) {
+    } catch {
       toast.error('Failed to log out');
     }
   };
@@ -153,7 +153,7 @@ const AdminDashboard = () => {
         try {
           await deleteProduct(id, imageUrl);
           toast.success(`${name} deleted`);
-        } catch (error) {
+        } catch {
           toast.error('Failed to delete product');
         }
       }
@@ -165,7 +165,7 @@ const AdminDashboard = () => {
     try {
       await updateProductStock(id, newStock);
       toast.success(`Stock updated`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to update stock');
     }
   };
@@ -175,7 +175,7 @@ const AdminDashboard = () => {
       const newVisibility = !(product.isVisible ?? true);
       await updateProduct(product.id, product, { ...product, isVisible: newVisibility });
       toast.success(newVisibility ? 'Product visible on storefront' : 'Product hidden from storefront');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update visibility');
     }
   };
@@ -185,7 +185,7 @@ const AdminDashboard = () => {
     try {
       await updateSettings(settingsData);
       toast.success('Settings saved successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to save settings');
     }
   };
@@ -220,7 +220,7 @@ const AdminDashboard = () => {
       await updateCategoriesList(newList);
       setNewCategoryName('');
       toast.success("Category added");
-    } catch (e) {
+    } catch {
       toast.error("Failed to add category");
     }
   };
@@ -235,7 +235,7 @@ const AdminDashboard = () => {
         try {
           await updateCategoriesList(newList);
           toast.success('Category removed');
-        } catch (e) {
+        } catch {
           toast.error('Failed to remove category');
         }
       }

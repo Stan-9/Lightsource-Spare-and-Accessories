@@ -17,17 +17,31 @@ const result = (success, data = null, error = null) => ({ success, data, error }
 
 export const logOrder = async (orderData) => {
   try {
-    const itemsWithCost = (orderData.items || []).map(item => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      buyingPrice: item.buyingPrice || 0,
-      quantity: item.quantity,
-    }));
+    const itemsWithCost = (orderData.items || []).map(item => {
+      const price = Number(item.price || 0);
+      return {
+        id: item.id,
+        name: item.name,
+        price: price,
+        buyingPrice: item.buyingPrice || 0,
+        quantity: item.quantity,
+        original_price: price,
+        final_price: price,
+        discount_amount: 0,
+        discount_percentage: 0,
+        was_discounted: false,
+      };
+    });
+
+    const total = Number(orderData.total || 0);
 
     const newOrder = {
       ...orderData,
       items: itemsWithCost,
+      subtotal_original: total,
+      total_discount: 0,
+      net_total: total,
+      flaggedForReview: false,
       createdAt: serverTimestamp(),
       status: 'pending',
       paymentType: orderData.paymentType || 'Cash',
@@ -64,18 +78,40 @@ export const executeTransaction = async (orderData) => {
         transaction.update(ref, { stock: newStock });
       }
 
-      const itemsWithCost = productDocs.map(({ data, item }) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        buyingPrice: data.buyingPrice || 0,
-        quantity: item.quantity,
-      }));
+      const itemsWithCost = productDocs.map(({ data, item }) => {
+        const originalPrice = Number(data.price || 0);
+        const finalPrice = Number(item.price);
+        const discountAmount = Math.max(0, originalPrice - finalPrice);
+        const discountPercentage = originalPrice > 0 ? (discountAmount / originalPrice) * 100 : 0;
+        const wasDiscounted = discountAmount > 0;
+
+        return {
+          id: item.id,
+          name: item.name,
+          price: finalPrice,
+          buyingPrice: data.buyingPrice || 0,
+          quantity: item.quantity,
+          original_price: originalPrice,
+          final_price: finalPrice,
+          discount_amount: discountAmount,
+          discount_percentage: discountPercentage,
+          was_discounted: wasDiscounted,
+        };
+      });
+
+      const subtotalOriginal = itemsWithCost.reduce((sum, item) => sum + (item.original_price * item.quantity), 0);
+      const totalDiscount = itemsWithCost.reduce((sum, item) => sum + (item.discount_amount * item.quantity), 0);
+      const netTotal = itemsWithCost.reduce((sum, item) => sum + (item.final_price * item.quantity), 0);
+      const flaggedForReview = itemsWithCost.some(item => item.was_discounted);
 
       const newOrderRef = doc(ordersCollection);
       transaction.set(newOrderRef, {
         ...orderData,
         items: itemsWithCost,
+        subtotal_original: subtotalOriginal,
+        total_discount: totalDiscount,
+        net_total: netTotal,
+        flaggedForReview: flaggedForReview,
         createdAt: serverTimestamp(),
         status: orderData.status || 'completed',
         paymentType: orderData.paymentType || 'Cash',

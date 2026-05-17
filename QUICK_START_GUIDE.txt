@@ -1,0 +1,113 @@
+================================================================================
+                    LIGHTSOURCE 2.0 - QUICK START GUIDE
+                         Fix Blank Page Issue
+================================================================================
+
+PROBLEM: App shows blank page on https://lightsource.stanleymaina2003.workers.dev
+
+SOLUTION: Update Cloudflare environment variables and trigger rebuild
+
+================================================================================
+                              STEP 1: UPDATE ENV VARS
+================================================================================
+
+1. Go to: https://dash.cloudflare.com/
+2. Click: Workers & Pages → lightsource
+3. Click: Settings tab
+4. Find: Environment Variables section
+5. Add these 9 variables (NO QUOTES around values):
+
+   VITE_FIREBASE_API_KEY = AIzaSyBYzC2sijes-eWHXgyU2f0MPFMZ4o6_Q5s
+   VITE_FIREBASE_AUTH_DOMAIN = lightsource-894e9.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID = lightsource-894e9
+   VITE_FIREBASE_STORAGE_BUCKET = lightsource-894e9.firebasestorage.app
+   VITE_FIREBASE_MESSAGING_SENDER_ID = 142379699375
+   VITE_FIREBASE_APP_ID = 1:142379699375:web:c0b47c2eba1d9e1552185a
+   VITE_CLOUDINARY_CLOUD_NAME = dzsxqxzj6
+   VITE_CLOUDINARY_UPLOAD_PRESET = Lightsource
+   VITE_ADMIN_EMAIL = stanleymaina2003@gmail.com
+
+6. Click: Save or Deploy
+
+================================================================================
+                           STEP 2: TRIGGER REBUILD
+================================================================================
+
+1. Click: Deployments tab
+2. Find: Latest deployment
+3. Click: Three dots (...) menu
+4. Select: Redeploy or Retry
+5. Wait: 1-2 minutes for build to complete
+
+================================================================================
+                              STEP 3: TEST APP
+================================================================================
+
+1. Open: https://lightsource.stanleymaina2003.workers.dev
+2. Clear cache: Ctrl+Shift+Delete (Windows) or Cmd+Shift+Delete (Mac)
+3. Refresh: F5 or Cmd+R
+4. Expected: Storefront loads with products (NOT blank page)
+
+================================================================================
+                           IF STILL BLANK
+================================================================================
+
+1. Open DevTools: F12
+2. Go to: Console tab
+3. Look for: Red error messages
+4. Take: Screenshot of errors
+5. Share: Screenshot with error details
+
+OR
+
+1. Go to: Network tab
+2. Refresh: Page
+3. Look for: Failed requests (red X)
+4. Check: If index.html loads successfully
+
+================================================================================
+                            IMPORTANT NOTES
+================================================================================
+
+❌ DO NOT wrap values in quotes
+   Wrong: VITE_FIREBASE_API_KEY = "AIzaSyBYzC2sijes-eWHXgyU2f0MPFMZ4o6_Q5s"
+   Right: VITE_FIREBASE_API_KEY = AIzaSyBYzC2sijes-eWHXgyU2f0MPFMZ4o6_Q5s
+
+⏱️  WAIT for Cloudflare to finish building (1-2 minutes)
+
+🔄 CLEAR browser cache before testing
+
+📱 PRODUCTION URL: https://lightsource.stanleymaina2003.workers.dev
+
+================================================================================
+                          REFERENCE DOCUMENTS
+================================================================================
+
+For detailed instructions, see:
+- IMMEDIATE_ACTION_PLAN.md
+- CLOUDFLARE_ENV_UPDATE_GUIDE.md
+- VERIFICATION_CHECKLIST.md
+
+================================================================================
+                            WHAT WAS FIXED
+================================================================================
+
+✅ Created wrangler.jsonc (Cloudflare config)
+✅ Recreated public/_redirects (SPA routing)
+✅ Committed to GitHub
+✅ Pushed to origin/main
+
+Cloudflare will automatically rebuild when you update env vars.
+
+================================================================================
+                          NEXT STEPS AFTER FIX
+================================================================================
+
+1. Complete E2E testing (VERIFICATION_CHECKLIST.md)
+2. Test admin login and dashboard
+3. Test storefront and checkout
+4. Test manual sales recording
+5. Optional: Setup custom domain
+6. Optional: Delete Vercel project
+
+================================================================================

@@ -33,10 +33,12 @@ import {
   AlertCircle,
   Clock,
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  Printer
 } from 'lucide-react';
 import ProductModal from '../components/admin/ProductModal';
 import ManualSaleModal from '../components/admin/ManualSaleModal';
+import ReceiptModal from '../components/admin/ReceiptModal';
 
 const NavButton = ({ id, icon: Icon, label, badge = null, activeTab, setActiveTab }) => (
   <button
@@ -60,7 +62,7 @@ const NavButton = ({ id, icon: Icon, label, badge = null, activeTab, setActiveTa
 );
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, creditors, settings
+  const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, analysis, creditors, settings
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -93,8 +95,9 @@ const AdminDashboard = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('all');
 
-  // Reprint receipt state
-  const [reprintOrder, setReprintOrder] = useState(null);
+  // Print receipt state
+  const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -280,6 +283,11 @@ const AdminDashboard = () => {
     toast.success("Inventory exported!");
   };
 
+  const handlePrintReceipt = (order) => {
+    setSelectedOrderForReceipt(order);
+    setIsReceiptModalOpen(true);
+  };
+
   // Date-range helper
   const filterByDateRange = useCallback((ordersList) => {
     if (dateRange === 'all') return ordersList;
@@ -312,17 +320,12 @@ const AdminDashboard = () => {
     const inventoryValueRetail = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
     const inventoryValueCost = products.reduce((acc, p) => acc + ((p.buyingPrice || 0) * p.stock), 0);
     const potentialProfit = inventoryValueRetail - inventoryValueCost;
-
-    // Apply date range to orders for stats
-    const rangedOrders = filterByDateRange(orders);
+    const rangedOrders = orders;
     const completedOrders = rangedOrders.filter(o => o.status === 'completed');
     const actualSales = completedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
-
-    // Use buyingPrice snapshot stored per item in order (historically accurate)
     const actualProfit = completedOrders.reduce((acc, o) => {
-      const orderProfit = (o.items || []).reduce((itemAcc, item) => {
-        const cost = item.buyingPrice || 0;
-        return itemAcc + ((item.price - cost) * (item.quantity || 1));
+      const orderProfit = (o.items || []).reduce((iAcc, item) => {
+        return iAcc + ((item.price - (item.buyingPrice || 0)) * item.quantity);
       }, 0);
       return acc + orderProfit;
     }, 0);
@@ -348,7 +351,102 @@ const AdminDashboard = () => {
       topPerformer,
       leastPerformer
     };
-  }, [products, orders, dateRange, filterByDateRange]);
+  }, [products, orders]);
+
+  const analysisStats = useMemo(() => {
+    const now = new Date();
+    const last7Days = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+    const last30Days = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+
+    const getStats = (ordersList) => {
+      const completed = ordersList.filter(o => o.status === 'completed');
+      const revenue = completed.reduce((acc, o) => acc + (o.total || 0), 0);
+      const profit = completed.reduce((acc, o) => {
+        const orderProfit = (o.items || []).reduce((iAcc, item) => {
+          return iAcc + ((item.price - (item.buyingPrice || 0)) * item.quantity);
+        }, 0);
+        return acc + orderProfit;
+      }, 0);
+      return { revenue, profit, count: completed.length };
+    };
+
+    const getWeeklyDiscountStats = (ordersList) => {
+      const completed = ordersList.filter(o => o.status === 'completed');
+      
+      let totalGrossRevenue = 0;
+      let totalDiscountsGiven = 0;
+      let netRevenueCollected = 0;
+      let discountedSalesCount = 0;
+      let fullPriceSalesCount = 0;
+      
+      const productDiscounts = {}; // name -> { count, amount }
+
+      completed.forEach(o => {
+        let orderHasDiscount = false;
+        
+        (o.items || []).forEach(item => {
+          const orig = item.original_price !== undefined ? item.original_price : item.price;
+          const final = item.final_price !== undefined ? item.final_price : item.price;
+          const qty = item.quantity || 1;
+          
+          const itemGross = orig * qty;
+          const itemDiscount = Math.max(0, orig - final) * qty;
+          const itemNet = final * qty;
+          
+          totalGrossRevenue += itemGross;
+          totalDiscountsGiven += itemDiscount;
+          netRevenueCollected += itemNet;
+          
+          if (itemDiscount > 0) {
+            orderHasDiscount = true;
+            if (!productDiscounts[item.name]) {
+              productDiscounts[item.name] = { name: item.name, count: 0, amount: 0 };
+            }
+            productDiscounts[item.name].count += qty;
+            productDiscounts[item.name].amount += itemDiscount;
+          }
+        });
+        
+        if (orderHasDiscount) {
+          discountedSalesCount++;
+        } else {
+          fullPriceSalesCount++;
+        }
+      });
+      
+      const marginErosion = totalDiscountsGiven;
+      
+      const topDiscountedProducts = Object.values(productDiscounts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+        
+      return {
+        totalGrossRevenue,
+        totalDiscountsGiven,
+        netRevenueCollected,
+        marginErosion,
+        discountedSalesCount,
+        fullPriceSalesCount,
+        topDiscountedProducts
+      };
+    };
+
+    const weekOrders = orders.filter(o => {
+      const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+      return date >= last7Days;
+    });
+
+    const monthOrders = orders.filter(o => {
+      const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+      return date >= last30Days;
+    });
+
+    return {
+      weekly: getStats(weekOrders),
+      monthly: getStats(monthOrders),
+      weeklyDiscounts: getWeeklyDiscountStats(weekOrders)
+    };
+  }, [orders]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -382,6 +480,7 @@ const AdminDashboard = () => {
           <NavButton id="overview" icon={LayoutDashboard} label="Overview" activeTab={activeTab} setActiveTab={setActiveTab} />
           <NavButton id="products" icon={Package} label="Inventory" badge={products.length} activeTab={activeTab} setActiveTab={setActiveTab} />
           <NavButton id="orders" icon={ShoppingCart} label="Orders Log" badge={orders.length} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavButton id="analysis" icon={TrendingUp} label="Business Analysis" activeTab={activeTab} setActiveTab={setActiveTab} />
           <NavButton 
             id="creditors" 
             icon={TrendingDown} 
@@ -414,22 +513,7 @@ const AdminDashboard = () => {
               <LayoutDashboard className="w-6 h-6 text-accentOrange opacity-50" />
             </h2>
 
-            {/* Date Range Filter */}
-            <div className="flex items-center gap-2 mb-8">
-              {['all', 'today', 'week', 'month'].map(r => (
-                <button
-                  key={r}
-                  onClick={() => setDateRange(r)}
-                  className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition ${
-                    dateRange === r
-                      ? 'bg-accentOrange text-white shadow-lg shadow-accentOrange/20'
-                      : 'bg-gray-800 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {r === 'all' ? 'All Time' : r === 'today' ? 'Today' : r === 'week' ? 'This Week' : 'This Month'}
-                </button>
-              ))}
-            </div>
+
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
               <div className="col-span-1 lg:col-span-4 bg-gradient-to-r from-accentOrange/20 to-transparent border border-accentOrange/30 p-8 rounded-3xl relative overflow-hidden">
@@ -443,37 +527,7 @@ const AdminDashboard = () => {
                     <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Total money tied in stock</p>
                   </div>
                   
-                  <div className="border-b md:border-b-0 md:border-r border-white/10 pb-6 md:pb-0 md:pr-8">
-                    <span className="text-green-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 flex items-center justify-between">
-                      Projected Potential Profit
-                      {stats.totalValue > 0 && (
-                        <span className="bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full tracking-wider">
-                          {((stats.potentialProfit / stats.totalValue) * 100).toFixed(1)}% Margin
-                        </span>
-                      )}
-                    </span>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">
-                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
-                      {stats.potentialProfit.toLocaleString()}
-                    </h3>
-                    <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Estimated earnings if all sold</p>
-                  </div>
 
-                  <div>
-                    <span className="text-blue-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 flex items-center justify-between">
-                      Actual Store Profit
-                      {stats.actualSales > 0 && (
-                        <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full tracking-wider">
-                          {((stats.actualProfit / stats.actualSales) * 100).toFixed(1)}% Margin
-                        </span>
-                      )}
-                    </span>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">
-                      <span className="text-blue-500 text-lg mr-2 font-medium italic">KES</span>
-                      {stats.actualProfit.toLocaleString()}
-                    </h3>
-                    <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">From {orders.filter(o => o.status === 'completed').length} completed sales</p>
-                  </div>
                 </div>
                 <div className="absolute -right-10 -bottom-10 opacity-5">
                   <TrendingUp className="w-64 h-64 rotate-12" />
@@ -857,7 +911,14 @@ const AdminDashboard = () => {
                           </td>
                           <td className="p-4">
                             <div className="flex flex-col">
-                              <span className="font-bold text-sm text-white">{order.customerName || '—'}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-white">{order.customerName || '—'}</span>
+                                {order.flaggedForReview && (
+                                  <span className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shrink-0">
+                                    Discounted
+                                  </span>
+                                )}
+                              </div>
                               {order.phone && <span className="text-[10px] text-gray-500">{order.phone}</span>}
                             </div>
                           </td>
@@ -903,11 +964,11 @@ const AdminDashboard = () => {
                           </td>
                           <td className="p-4 text-center">
                             <button
-                              onClick={() => setReprintOrder(order)}
+                              onClick={() => handlePrintReceipt(order)}
                               className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-accentOrange/20 border border-transparent hover:border-accentOrange/30 rounded-lg transition"
-                              title="Reprint Receipt"
+                              title="Print Receipt"
                             >
-                              🖨️
+                              <Printer className="w-4 h-4" />
                             </button>
                           </td>
                         </tr>
@@ -916,6 +977,170 @@ const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ANALYSIS TAB */}
+        {activeTab === 'analysis' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4 flex items-center gap-3">
+              Business Performance Analysis
+              <TrendingUp className="w-6 h-6 text-accentOrange opacity-50" />
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Weekly Stats */}
+              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-accentOrange/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-accentOrange/10 transition-colors" />
+                <span className="inline-block px-3 py-1 bg-accentOrange/10 text-accentOrange text-[10px] font-black uppercase tracking-widest rounded-full mb-6">Last 7 Days</span>
+                <h3 className="text-xl font-bold text-gray-400 mb-8">Weekly Summary</h3>
+                
+                <div className="space-y-8">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Total Revenue</p>
+                    <p className="text-4xl font-black text-white tracking-tighter">
+                      <span className="text-accentOrange text-lg mr-2 font-medium italic">KES</span>
+                      {analysisStats.weekly.revenue.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Total Profit</p>
+                    <p className="text-4xl font-black text-white tracking-tighter">
+                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
+                      {analysisStats.weekly.profit.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="pt-6 border-t border-white/5 flex justify-between items-center text-xs font-bold text-gray-500">
+                    <span>Total Sales Made</span>
+                    <span className="text-white">{analysisStats.weekly.count} orders</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly Stats */}
+              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-blue-500/10 transition-colors" />
+                <span className="inline-block px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-6">Last 30 Days</span>
+                <h3 className="text-xl font-bold text-gray-400 mb-8">Monthly Summary</h3>
+                
+                <div className="space-y-8">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Total Revenue</p>
+                    <p className="text-4xl font-black text-white tracking-tighter">
+                      <span className="text-blue-500 text-lg mr-2 font-medium italic">KES</span>
+                      {analysisStats.monthly.revenue.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Total Profit</p>
+                    <p className="text-4xl font-black text-white tracking-tighter">
+                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
+                      {analysisStats.monthly.profit.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="pt-6 border-t border-white/5 flex justify-between items-center text-xs font-bold text-gray-500">
+                    <span>Total Sales Made</span>
+                    <span className="text-white">{analysisStats.monthly.count} orders</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Discount Impact & Erosion Analysis */}
+            <div className="mt-8 bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-yellow-500/10 transition-colors" />
+              <span className="inline-block px-3 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-black uppercase tracking-widest rounded-full mb-6">Discount Analysis (7 Days)</span>
+              <h3 className="text-xl font-bold text-gray-400 mb-8">Discount Impact & Margin Erosion</h3>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Stats Breakdown */}
+                <div className="space-y-6 lg:border-r lg:border-gray-800 lg:pr-8">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Gross Revenue (Catalog Value)</p>
+                    <p className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-gray-500 text-sm mr-1.5 font-medium italic">KES</span>
+                      {analysisStats.weeklyDiscounts.totalGrossRevenue.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500 mb-1">Margin Erosion (Discounts Given)</p>
+                    <p className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-yellow-500 text-sm mr-1.5 font-medium italic">KES</span>
+                      {analysisStats.weeklyDiscounts.totalDiscountsGiven.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Net Revenue Collected</p>
+                    <p className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-green-500 text-sm mr-1.5 font-medium italic">KES</span>
+                      {analysisStats.weeklyDiscounts.netRevenueCollected.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sales Ratio Frequency */}
+                <div className="space-y-6 lg:border-r lg:border-gray-800 lg:px-8">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Discount Frequency Ratio</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">Discounted Transactions</span>
+                      <span className="text-yellow-500 font-bold">{analysisStats.weeklyDiscounts.discountedSalesCount} sales</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">Full Price Transactions</span>
+                      <span className="text-gray-200 font-bold">{analysisStats.weeklyDiscounts.fullPriceSalesCount} sales</span>
+                    </div>
+                    
+                    <div className="pt-4">
+                      {(() => {
+                        const total = analysisStats.weeklyDiscounts.discountedSalesCount + analysisStats.weeklyDiscounts.fullPriceSalesCount;
+                        const discountedPct = total > 0 ? (analysisStats.weeklyDiscounts.discountedSalesCount / total) * 100 : 0;
+                        return (
+                          <div className="space-y-2">
+                            <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden flex">
+                              <div style={{ width: `${discountedPct}%` }} className="bg-yellow-500 h-full" />
+                              <div style={{ width: `${100 - discountedPct}%` }} className="bg-gray-700 h-full" />
+                            </div>
+                            <p className="text-[10px] text-gray-500 font-bold">
+                              {discountedPct.toFixed(0)}% of transactions involved discounts
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Discounted Items */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Top Discounted Products</h4>
+                  
+                  {analysisStats.weeklyDiscounts.topDiscountedProducts.length === 0 ? (
+                    <p className="text-xs text-gray-500 italic py-4">No discounted items sold this week.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {analysisStats.weeklyDiscounts.topDiscountedProducts.map((p, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 text-xs bg-black/20 p-2.5 rounded-xl border border-gray-800/40">
+                          <div className="truncate flex-1">
+                            <p className="text-white font-bold truncate uppercase">{p.name}</p>
+                            <p className="text-[10px] text-gray-500 font-bold">{p.count} units sold with discount</p>
+                          </div>
+                          <span className="text-yellow-500 font-black shrink-0">- KES {p.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-12 bg-gray-900/50 border border-gray-800 rounded-2xl p-6">
+               <p className="text-gray-500 text-xs italic">
+                 Note: Profit is calculated based on the buying price recorded at the time of each product entry.
+                 Only completed orders are included in these statistics.
+               </p>
             </div>
           </div>
         )}
@@ -1091,57 +1316,12 @@ const AdminDashboard = () => {
         products={products}
       />
 
-      {/* Confirm Modal (replaces window.confirm) */}
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        confirmLabel="Confirm"
-        confirmClassName="bg-red-500 hover:bg-red-600 text-white"
-        onConfirm={confirmModal.onConfirm}
-        onCancel={closeConfirm}
+      <ReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        order={selectedOrderForReceipt}
+        settings={settingsData}
       />
-
-      {/* Reprint Receipt Modal */}
-      {reprintOrder && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setReprintOrder(null)}>
-          <div className="bg-white text-black font-mono max-w-sm w-full rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-              <h3 className="font-black text-gray-800">Reprint Receipt</h3>
-              <div className="flex gap-2">
-                <button onClick={() => window.print()} className="bg-accentOrange text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-orange-600 transition">🖨️ Print</button>
-                <button onClick={() => setReprintOrder(null)} className="bg-gray-200 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-300 transition">Close</button>
-              </div>
-            </div>
-            <div id="receipt-content" className="p-6">
-              <div className="text-center mb-4">
-                <h1 className="text-lg font-black uppercase tracking-tighter">LIGHTSOURCE MOTORS</h1>
-                <p className="text-[10px] text-gray-500">Performance & Reliability</p>
-                <div className="h-px bg-gray-200 my-3" />
-                <p className="text-xs font-bold uppercase">Official Receipt</p>
-                <p className="text-[10px] text-gray-400">{reprintOrder.createdAt?.toDate ? reprintOrder.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</p>
-              </div>
-              <div className="space-y-1 mb-4 text-[10px]">
-                {reprintOrder.customerName && <div className="flex justify-between"><span className="font-bold">Customer:</span><span>{reprintOrder.customerName}</span></div>}
-                {reprintOrder.phone && <div className="flex justify-between"><span className="font-bold">Phone:</span><span>{reprintOrder.phone}</span></div>}
-                <div className="flex justify-between"><span className="font-bold">Payment:</span><span>{reprintOrder.paymentType} ({reprintOrder.paymentStatus || 'Paid'})</span></div>
-              </div>
-              <table className="w-full text-[10px] border-t border-b border-black py-2 my-2">
-                <thead><tr className="font-black uppercase"><th className="text-left pb-1">Item</th><th className="text-center">Qty</th><th className="text-right">Total</th></tr></thead>
-                <tbody className="divide-y divide-gray-100">
-                  {(reprintOrder.items || []).map((item, i) => (
-                    <tr key={i}><td className="py-1 pr-2">{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-right">{((item.price||0)*(item.quantity||1)).toLocaleString()}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex justify-between font-black text-sm mt-3">
-                <span>TOTAL</span><span>KES {(reprintOrder.total||0).toLocaleString()}</span>
-              </div>
-              <p className="text-center text-[9px] text-gray-400 mt-4 uppercase tracking-widest">Thank you for your business!</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

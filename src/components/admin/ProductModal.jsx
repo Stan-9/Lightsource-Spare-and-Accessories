@@ -9,6 +9,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
     category: '',
     price: '',
     buyingPrice: '',
+    minSellPrice: '',
     stock: '',
     description: '',
     isVisible: true,
@@ -24,13 +25,14 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
         category: product.category || '',
         price: product.price || '',
         buyingPrice: product.buyingPrice || '',
+        minSellPrice: product.minSellPrice || '',
         stock: product.stock || '',
         description: product.description || '',
         isVisible: product.isVisible ?? true,
       });
       setImagePreview(product.imageUrl || null);
     } else {
-      setFormData({ name: '', category: '', price: '', buyingPrice: '', stock: '', description: '', imageUrl: '', isVisible: true });
+      setFormData({ name: '', category: '', price: '', buyingPrice: '', minSellPrice: '', stock: '', description: '', imageUrl: '', isVisible: true });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -207,7 +209,20 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Min Selling Price *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={formData.minSellPrice}
+                    onChange={e => setFormData({...formData, minSellPrice: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accentOrange transition"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Stock Quantity *</label>
                   <input 
                     type="number" 

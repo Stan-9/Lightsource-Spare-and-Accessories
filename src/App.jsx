@@ -4,7 +4,6 @@ import { CartProvider } from './context/CartContext';
 import StoreFront from './pages/StoreFront';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import Login from './pages/Login';
 import Checkout from './pages/Checkout';
 import Business from './pages/Business';
 import NotFound from './pages/NotFound';
@@ -46,22 +45,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Customer route — any authenticated Firebase user can checkout
-const CustomerProtectedRoute = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  if (loading) return <Spinner />;
-  return user ? children : <Navigate to="/login" replace />;
-};
 
 function App() {
   return (
@@ -76,20 +60,9 @@ function App() {
             }}
           />
           <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/business" element={<Business />} />
             <Route path="/" element={<StoreFront />} />
-
-            {/* Protected customer route */}
-            <Route
-              path="/checkout"
-              element={
-                <CustomerProtectedRoute>
-                  <Checkout />
-                </CustomerProtectedRoute>
-              }
-            />
+            <Route path="/business" element={<Business />} />
+            <Route path="/checkout" element={<Checkout />} />
 
             {/* Admin routes */}
             <Route path="/admin" element={<Navigate to="/admin/login" replace />} />

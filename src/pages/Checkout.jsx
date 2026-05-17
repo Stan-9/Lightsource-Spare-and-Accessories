@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { processManualSale } from '../firebase/products';
-import { auth } from '../firebase/config';
 import Header from '../components/shared/Header';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +14,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    customerName: auth.currentUser?.displayName || '',
+    customerName: '',
     phone: '',
     address: '',
     notes: '',
@@ -59,8 +58,8 @@ const Checkout = () => {
     setLoading(true);
     try {
       const orderData = {
-        userId: auth.currentUser.uid,
-        email: auth.currentUser.email,
+        userId: 'anonymous',
+        email: 'anonymous@customer.com',
         customerName: formData.customerName.trim(),
         phone: formData.phone.trim(),
         address: formData.address.trim(),

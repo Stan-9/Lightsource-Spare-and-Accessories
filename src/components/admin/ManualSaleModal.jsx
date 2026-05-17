@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Package } from 'lucide-react';
+import { X, Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Package, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { processManualSale } from '../../firebase/products';
 
@@ -46,9 +46,20 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
         toast.error(`Only ${product.stock} units available in stock`);
       }
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      setCart([...cart, { 
+        ...product, 
+        quantity: 1, 
+        originalCatalogPrice: product.price,
+        minSellPrice: product.minSellPrice || 0
+      }]);
     }
     setSearchQuery(''); // clear search after adding
+  };
+
+  const updatePrice = (id, newPrice) => {
+    setCart(cart.map(item => 
+      item.id === id ? { ...item, price: Number(newPrice) || 0 } : item
+    ));
   };
 
   const updateQuantity = (id, newQuantity, maxStock) => {
@@ -78,20 +89,47 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
       return;
     }
 
+    // Minimum sell price check
+    for (const item of cart) {
+      const minPrice = Number(item.minSellPrice || 0);
+      if (minPrice > 0 && item.price < minPrice) {
+        toast.error(
+          `Price for "${item.name}" (KES ${item.price.toLocaleString()}) is below the minimum allowed price of KES ${minPrice.toLocaleString()}! Please ask a manager for authorization.`,
+          { duration: 6000 }
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
+      const subtotalOriginal = cart.reduce((sum, item) => sum + ((item.originalCatalogPrice || item.price) * item.quantity), 0);
+      const totalDiscount = cart.reduce((sum, item) => sum + (((item.originalCatalogPrice || item.price) - item.price) * item.quantity), 0);
+
       const orderData = {
         customerName: customerName.trim() || 'Walk-in Customer',
         customerAction: 'manual_walk_in',
         paymentType,
         paymentStatus,
         total: grandTotal,
-        items: cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity
-        }))
+        subtotal_original: subtotalOriginal,
+        total_discount: totalDiscount,
+        net_total: grandTotal,
+        items: cart.map(item => {
+          const orig = item.originalCatalogPrice || item.price;
+          const discAmount = Math.max(0, orig - item.price);
+          return {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            original_price: orig,
+            final_price: item.price,
+            discount_amount: discAmount,
+            discount_percentage: orig > 0 ? (discAmount / orig) * 100 : 0,
+            was_discounted: discAmount > 0
+          };
+        })
       };
 
       await processManualSale(orderData);
@@ -209,42 +247,79 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
                   <p className="text-xs italic">Add items from the left</p>
                 </div>
               ) : (
-                cart.map(item => (
-                  <div key={item.id} className="bg-gray-800/50 border border-gray-700 p-3 rounded-xl flex flex-col gap-2">
-                    <div className="flex justify-between gap-2">
-                      <span className="text-sm font-bold text-white truncate flex-1">{item.name}</span>
-                      <button onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-400 transition">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-700">
-                        <button 
-                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.stock)}
-                          className="w-6 h-6 flex items-center justify-center bg-gray-800 rounded text-gray-400 hover:text-white transition"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <input 
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0, item.stock)}
-                          className="w-12 text-sm font-bold text-center bg-transparent text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button 
-                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.stock)}
-                          className="w-6 h-6 flex items-center justify-center bg-gray-800 rounded text-gray-400 hover:text-white transition"
-                        >
-                          <Plus className="w-3 h-3" />
+                cart.map(item => {
+                  const origPrice = item.originalCatalogPrice || item.price;
+                  const discountVal = Math.max(0, origPrice - item.price);
+                  const discountPct = origPrice > 0 ? (discountVal / origPrice) * 100 : 0;
+                  const isBelowMin = item.minSellPrice > 0 && item.price < item.minSellPrice;
+
+                  return (
+                    <div key={item.id} className="bg-gray-800/50 border border-gray-700 p-3 rounded-xl flex flex-col gap-2 animate-in fade-in-50 duration-200">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-sm font-bold text-white truncate flex-1">{item.name}</span>
+                        <button onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-400 transition shrink-0">
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <span className="text-sm font-black text-white">
-                        KES {((item.price || 0) * (item.quantity || 0)).toLocaleString()}
-                      </span>
+                      
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-700 shrink-0">
+                          <button 
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.stock)}
+                            className="w-6 h-6 flex items-center justify-center bg-gray-800 rounded text-gray-400 hover:text-white transition"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input 
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0, item.stock)}
+                            className="w-10 text-sm font-bold text-center bg-transparent text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.stock)}
+                            className="w-6 h-6 flex items-center justify-center bg-gray-800 rounded text-gray-400 hover:text-white transition"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <span className="text-sm font-black text-white shrink-0">
+                          KES {((item.price || 0) * (item.quantity || 0)).toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Selling price input with dynamic feedback */}
+                      <div className="pt-2 border-t border-gray-800/40 flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Unit Sell Price</label>
+                          {discountVal > 0 && (
+                            <span className="text-[10px] text-green-400 font-bold">
+                              Discount: KES {discountVal.toLocaleString()} (-{discountPct.toFixed(0)}%)
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-bold">KES</span>
+                          <input
+                            type="number"
+                            value={item.price}
+                            onChange={(e) => updatePrice(item.id, e.target.value)}
+                            placeholder="0"
+                            className={`w-full bg-gray-900 border ${isBelowMin ? 'border-red-500/80 focus:border-red-500 focus:ring-red-500/30' : 'border-gray-800 focus:border-accentOrange focus:ring-accentOrange/30'} rounded-lg pl-10 pr-3 py-1.5 text-xs text-white font-bold focus:outline-none focus:ring-1 transition`}
+                          />
+                        </div>
+                        {isBelowMin && (
+                          <div className="flex items-center gap-1.5 text-[9px] text-red-500 font-black uppercase tracking-wider animate-pulse mt-0.5">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                            <span>Below min allowed KES {item.minSellPrice.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             
@@ -291,10 +366,28 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-end border-t border-gray-800 pt-3">
-                <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Grand Total</span>
-                <span className="text-2xl font-black text-accentOrange italic">KES {(grandTotal || 0).toLocaleString()}</span>
-              </div>
+              {(() => {
+                const subtotalOriginal = cart.reduce((sum, item) => sum + ((item.originalCatalogPrice || item.price) * item.quantity), 0);
+                const totalDiscount = cart.reduce((sum, item) => sum + (((item.originalCatalogPrice || item.price) - item.price) * item.quantity), 0);
+                return (
+                  <div className="space-y-2 border-t border-gray-800 pt-3">
+                    <div className="flex justify-between text-xs text-gray-400 font-bold">
+                      <span>Gross Total</span>
+                      <span>KES {subtotalOriginal.toLocaleString()}</span>
+                    </div>
+                    {totalDiscount > 0 && (
+                      <div className="flex justify-between text-xs text-green-400 font-bold">
+                        <span>Discount Given</span>
+                        <span>- KES {totalDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-end pt-1">
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Net Total</span>
+                      <span className="text-2xl font-black text-accentOrange italic">KES {(grandTotal || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <button
                 onClick={handleSubmit}
@@ -378,21 +471,49 @@ const ReceiptView = ({ order, onPrint, onClose }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {order.items.map((item, i) => (
-                <tr key={i}>
-                  <td className="py-2 pr-2 leading-tight">{item.name}</td>
-                  <td className="py-2 text-center">{item.quantity}</td>
-                  <td className="py-2 text-right">{(item.price * item.quantity).toLocaleString()}</td>
-                </tr>
-              ))}
+              {order.items.map((item, i) => {
+                const orig = item.original_price !== undefined ? item.original_price : item.price;
+                const final = item.final_price !== undefined ? item.final_price : item.price;
+                const discountAmount = Math.max(0, orig - final);
+                const discountPct = orig > 0 ? (discountAmount / orig) * 100 : 0;
+                
+                return (
+                  <tr key={i}>
+                    <td className="py-2 pr-2 leading-tight">
+                      <div className="flex flex-col">
+                        <span className="uppercase">{item.name}</span>
+                        {discountAmount > 0 && (
+                          <span className="text-[8px] text-gray-500 italic">
+                            Catalog: KES {orig.toLocaleString()} (-{discountPct.toFixed(0)}%)
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2 text-center">{item.quantity}</td>
+                    <td className="py-2 text-right">{(final * item.quantity).toLocaleString()}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         <div className="space-y-2 mb-8">
-          <div className="flex justify-between text-base font-black">
-            <span>TOTAL</span>
-            <span>KES {order.total.toLocaleString()}</span>
+          {order.total_discount > 0 ? (
+            <div className="border-b border-dashed border-black/10 pb-2 space-y-1 text-[10px]">
+              <div className="flex justify-between">
+                <span>SUBTOTAL (GROSS)</span>
+                <span>KES {order.subtotal_original?.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-600 font-bold">
+                <span>DISCOUNT GIVEN</span>
+                <span>- KES {order.total_discount?.toLocaleString()}</span>
+              </div>
+            </div>
+          ) : null}
+          <div className="flex justify-between text-base font-black pt-1">
+            <span>TOTAL (NET)</span>
+            <span>KES {(order.net_total || order.total).toLocaleString()}</span>
           </div>
         </div>
 

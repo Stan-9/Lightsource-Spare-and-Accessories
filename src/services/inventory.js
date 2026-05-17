@@ -46,6 +46,7 @@ export const addProduct = async (productData, imageFile) => {
       ...productData,
       price: Number(productData.price),
       buyingPrice: Number(productData.buyingPrice || 0),
+      minSellPrice: Number(productData.minSellPrice || 0),
       stock: Number(productData.stock),
       imageUrl,
       createdAt: serverTimestamp()
@@ -75,6 +76,7 @@ export const updateProduct = async (id, currentData, updatedData, newImageFile =
       ...updatedData,
       price: Number(updatedData.price),
       buyingPrice: Number(updatedData.buyingPrice || 0),
+      minSellPrice: Number(updatedData.minSellPrice || 0),
       stock: Number(updatedData.stock),
       imageUrl
     });

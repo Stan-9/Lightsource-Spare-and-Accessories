@@ -69,7 +69,7 @@ const StoreFront = () => {
           </div>
         )}
 
-        <div className="relative h-64 bg-pitchBlack overflow-hidden flex items-center justify-center border-b border-machineGray/50">
+        <div className="relative h-40 sm:h-48 md:h-56 lg:h-64 bg-pitchBlack overflow-hidden flex items-center justify-center border-b border-machineGray/50">
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
@@ -78,7 +78,7 @@ const StoreFront = () => {
             />
           ) : (
             <div className="flex flex-col items-center gap-2 opacity-10">
-              <Settings className="w-16 h-16 animate-spin-slow" />
+              <Settings className="w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 animate-spin-slow" />
               <span className="text-[8px] font-black uppercase tracking-[0.4em]">Hardware Asset</span>
             </div>
           )}
@@ -99,9 +99,9 @@ const StoreFront = () => {
           </div>
         </div>
 
-        <div className="p-6 flex flex-col flex-1 relative">
+        <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col flex-1 relative">
           <div className="mb-6">
-            <h3 className="text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight font-technical uppercase tracking-tighter">
+            <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight font-technical uppercase tracking-tighter">
               {product.name}
             </h3>
             
@@ -115,7 +115,7 @@ const StoreFront = () => {
           <div className="mt-auto flex items-end justify-between border-t border-machineGray/30 pt-6">
             <div>
               <span className="text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">MSRP / Unit</span>
-              <span className="text-2xl font-black text-white font-technical">
+              <span className="text-lg sm:text-xl md:text-2xl font-black text-white font-technical">
                 <span className="text-accentOrange text-sm mr-1">KES</span>
                 {product.price.toLocaleString()}
               </span>
@@ -232,11 +232,11 @@ const StoreFront = () => {
 
         {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 lg:gap-12">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 lg:gap-12">
             {filteredProducts.map((product, index) => (
               <ProductCard key={product.id} product={product} index={index} />
             ))}

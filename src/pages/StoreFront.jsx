@@ -69,7 +69,7 @@ const StoreFront = () => {
           </div>
         )}
 
-        <div className="relative h-40 sm:h-48 md:h-56 lg:h-64 bg-pitchBlack overflow-hidden flex items-center justify-center border-b border-machineGray/50">
+        <div className="relative h-36 sm:h-48 md:h-56 lg:h-64 bg-pitchBlack overflow-hidden flex items-center justify-center border-b border-machineGray/50">
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
@@ -85,44 +85,44 @@ const StoreFront = () => {
           
           <div className="absolute inset-0 bg-gradient-to-t from-pitchBlack via-transparent to-transparent opacity-80" />
 
-          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 justify-between items-center z-10">
-            <div className="bg-machineGray/80 backdrop-blur-md px-3 py-1 rounded-sm text-[9px] font-black text-white border border-white/10 uppercase tracking-[0.2em] font-technical">
+          <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 flex flex-col sm:flex-row gap-1 sm:gap-2 justify-between items-start sm:items-center z-10">
+            <div className="bg-machineGray/80 backdrop-blur-md px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-sm text-[7px] sm:text-[9px] font-black text-white border border-white/10 uppercase tracking-[0.2em] font-technical">
               {product.category || 'GENUINE PART'}
             </div>
             
-            <div className={`px-3 py-1 rounded-sm text-[9px] font-black shadow-lg flex items-center gap-2 uppercase tracking-[0.2em] ${
+            <div className={`px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-sm text-[7px] sm:text-[9px] font-black shadow-lg flex items-center gap-1 sm:gap-2 uppercase tracking-[0.2em] ${
               isOutOfStock ? 'bg-brakeRed/20 text-brakeRed border border-brakeRed/30' : 'bg-machineryGreen/20 text-machineryGreen border border-machineryGreen/30'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-brakeRed' : 'bg-machineryGreen'}`} />
+              <span className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full ${isOutOfStock ? 'bg-brakeRed' : 'bg-machineryGreen'}`} />
               {isOutOfStock ? 'Depleted' : 'Operational'}
             </div>
           </div>
         </div>
 
-        <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col flex-1 relative">
-          <div className="mb-6">
-            <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight font-technical uppercase tracking-tighter">
+        <div className="p-2 sm:p-4 md:p-5 lg:p-6 flex flex-col flex-1 relative">
+          <div className="mb-2 sm:mb-6">
+            <h3 className="text-xs sm:text-base md:text-lg lg:text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight font-technical uppercase tracking-tighter line-clamp-2">
               {product.name}
             </h3>
             
             {product.description && (
-              <p className="text-gray-500 text-xs mt-4 line-clamp-3 leading-relaxed font-utilitarian uppercase tracking-wide border-l-2 border-machineGray pl-4">
+              <p className="hidden sm:block text-gray-500 text-xs mt-4 line-clamp-3 leading-relaxed font-utilitarian uppercase tracking-wide border-l-2 border-machineGray pl-4">
                 {product.description}
               </p>
             )}
           </div>
 
-          <div className="mt-auto flex items-end justify-between border-t border-machineGray/30 pt-6">
+          <div className="mt-auto flex flex-col sm:flex-row sm:items-end justify-between border-t border-machineGray/30 pt-3 sm:pt-6 gap-2">
             <div>
-              <span className="text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">MSRP / Unit</span>
-              <span className="text-lg sm:text-xl md:text-2xl font-black text-white font-technical">
-                <span className="text-accentOrange text-sm mr-1">KES</span>
+              <span className="hidden sm:block text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">MSRP / Unit</span>
+              <span className="text-sm sm:text-xl md:text-2xl font-black text-white font-technical">
+                <span className="text-accentOrange text-[10px] sm:text-sm mr-0.5 sm:mr-1">KES</span>
                 {product.price.toLocaleString()}
               </span>
             </div>
-            <div className="text-right">
-              <span className="text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">Status</span>
-              <span className={`text-[10px] font-black uppercase tracking-widest ${isOutOfStock ? 'text-brakeRed' : 'text-machineryGreen'}`}>
+            <div className="text-left sm:text-right">
+              <span className="hidden sm:block text-[9px] text-gray-600 uppercase font-black block tracking-[0.3em] mb-2 font-technical">Status</span>
+              <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${isOutOfStock ? 'text-brakeRed' : 'text-machineryGreen'}`}>
                 {isOutOfStock ? 'Out of Stock' : `Stock: ${product.stock}`}
               </span>
             </div>
@@ -131,7 +131,7 @@ const StoreFront = () => {
           <button
             disabled={isOutOfStock || maxReached}
             onClick={() => addToCart(product)}
-            className={`mt-8 py-4 rounded-sm font-black text-[10px] uppercase tracking-[0.3em] w-full flex justify-center items-center gap-3 transition-all duration-300 font-technical ${
+            className={`mt-4 py-2.5 sm:py-4 rounded-sm font-black text-[8px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] w-full flex justify-center items-center gap-1.5 sm:gap-3 transition-all duration-300 font-technical ${
               isOutOfStock 
                 ? 'bg-machineGray/20 text-gray-700 cursor-not-allowed border border-machineGray/50'
                 : maxReached
@@ -140,13 +140,14 @@ const StoreFront = () => {
             }`}
           >
             {isOutOfStock 
-              ? 'ITEM DEPLETED' 
+              ? 'DEPLETED' 
               : maxReached 
-                ? 'INVENTORY LIMIT' 
+                ? 'LIMIT' 
                 : (
                   <>
-                    Acquire Part
-                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Acquire Part</span>
+                    <span className="inline sm:hidden">Acquire</span>
+                    <Plus className="w-3.5 h-3.5" />
                   </>
                 )}
           </button>
@@ -232,11 +233,11 @@ const StoreFront = () => {
 
         {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 lg:gap-12">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-12">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 lg:gap-12">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-12">
             {filteredProducts.map((product, index) => (
               <ProductCard key={product.id} product={product} index={index} />
             ))}

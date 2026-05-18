@@ -30,6 +30,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Tags,
+  Tag,
   AlertCircle,
   Clock,
   ChevronRight,
@@ -94,6 +95,9 @@ const AdminDashboard = () => {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('all');
+
+  // Analysis range selection
+  const [analysisRange, setAnalysisRange] = useState('weekly'); // weekly | monthly
 
   // Print receipt state
   const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState(null);
@@ -355,98 +359,89 @@ const AdminDashboard = () => {
 
   const analysisStats = useMemo(() => {
     const now = new Date();
-    const last7Days = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-    const last30Days = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const rangeDays = analysisRange === 'weekly' ? 7 : 30;
+    const cutoffDate = new Date(now.getTime() - (rangeDays * 24 * 60 * 60 * 1000));
 
-    const getStats = (ordersList) => {
-      const completed = ordersList.filter(o => o.status === 'completed');
-      const revenue = completed.reduce((acc, o) => acc + (o.total || 0), 0);
-      const profit = completed.reduce((acc, o) => {
-        const orderProfit = (o.items || []).reduce((iAcc, item) => {
-          return iAcc + ((item.price - (item.buyingPrice || 0)) * item.quantity);
-        }, 0);
-        return acc + orderProfit;
-      }, 0);
-      return { revenue, profit, count: completed.length };
-    };
+    const rangedOrders = orders.filter(o => {
+      const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+      return date >= cutoffDate;
+    });
 
-    const getWeeklyDiscountStats = (ordersList) => {
-      const completed = ordersList.filter(o => o.status === 'completed');
+    const completed = rangedOrders.filter(o => o.status === 'completed');
+
+    let totalGrossRevenue = 0;
+    let totalDiscountsGiven = 0;
+    let netRevenueCollected = 0;
+    let actualNetProfit = 0;
+    
+    let discountedSalesCount = 0;
+    let fullPriceSalesCount = 0;
+    
+    const productDiscounts = {}; // name -> { count, amount }
+    const discountedSalesList = [];
+
+    completed.forEach(o => {
+      let orderHasDiscount = false;
+      let orderProfit = 0;
       
-      let totalGrossRevenue = 0;
-      let totalDiscountsGiven = 0;
-      let netRevenueCollected = 0;
-      let discountedSalesCount = 0;
-      let fullPriceSalesCount = 0;
-      
-      const productDiscounts = {}; // name -> { count, amount }
-
-      completed.forEach(o => {
-        let orderHasDiscount = false;
+      (o.items || []).forEach(item => {
+        const orig = item.originalPrice !== undefined ? item.originalPrice 
+                     : (item.original_price !== undefined ? item.original_price : item.price);
+        const final = item.finalPrice !== undefined ? item.finalPrice 
+                     : (item.final_price !== undefined ? item.final_price : item.price);
+        const buying = item.buyingPrice !== undefined ? item.buyingPrice 
+                      : (item.buying_price !== undefined ? item.buying_price : 0);
+        const qty = item.quantity || 1;
         
-        (o.items || []).forEach(item => {
-          const orig = item.original_price !== undefined ? item.original_price : item.price;
-          const final = item.final_price !== undefined ? item.final_price : item.price;
-          const qty = item.quantity || 1;
-          
-          const itemGross = orig * qty;
-          const itemDiscount = Math.max(0, orig - final) * qty;
-          const itemNet = final * qty;
-          
-          totalGrossRevenue += itemGross;
-          totalDiscountsGiven += itemDiscount;
-          netRevenueCollected += itemNet;
-          
-          if (itemDiscount > 0) {
-            orderHasDiscount = true;
-            if (!productDiscounts[item.name]) {
-              productDiscounts[item.name] = { name: item.name, count: 0, amount: 0 };
-            }
-            productDiscounts[item.name].count += qty;
-            productDiscounts[item.name].amount += itemDiscount;
+        const itemGross = orig * qty;
+        const itemDiscount = Math.max(0, orig - final) * qty;
+        const itemNet = final * qty;
+        
+        orderProfit += (final - buying) * qty;
+        
+        totalGrossRevenue += itemGross;
+        totalDiscountsGiven += itemDiscount;
+        netRevenueCollected += itemNet;
+        
+        if (itemDiscount > 0) {
+          orderHasDiscount = true;
+          if (!productDiscounts[item.name]) {
+            productDiscounts[item.name] = { name: item.name, count: 0, amount: 0 };
           }
-        });
-        
-        if (orderHasDiscount) {
-          discountedSalesCount++;
-        } else {
-          fullPriceSalesCount++;
+          productDiscounts[item.name].count += qty;
+          productDiscounts[item.name].amount += itemDiscount;
         }
       });
       
-      const marginErosion = totalDiscountsGiven;
+      actualNetProfit += orderProfit;
       
-      const topDiscountedProducts = Object.values(productDiscounts)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-        
-      return {
-        totalGrossRevenue,
-        totalDiscountsGiven,
-        netRevenueCollected,
-        marginErosion,
-        discountedSalesCount,
-        fullPriceSalesCount,
-        topDiscountedProducts
-      };
-    };
-
-    const weekOrders = orders.filter(o => {
-      const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
-      return date >= last7Days;
+      if (orderHasDiscount) {
+        discountedSalesCount++;
+        discountedSalesList.push(o);
+      } else {
+        fullPriceSalesCount++;
+      }
     });
 
-    const monthOrders = orders.filter(o => {
-      const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
-      return date >= last30Days;
-    });
+    const topDiscountedProducts = Object.values(productDiscounts)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    const marginErosion = totalDiscountsGiven;
 
     return {
-      weekly: getStats(weekOrders),
-      monthly: getStats(monthOrders),
-      weeklyDiscounts: getWeeklyDiscountStats(weekOrders)
+      totalGrossRevenue,
+      totalDiscountsGiven,
+      netRevenueCollected,
+      actualNetProfit,
+      marginErosion,
+      discountedSalesCount,
+      fullPriceSalesCount,
+      topDiscountedProducts,
+      discountedSalesList,
+      completedCount: completed.length
     };
-  }, [orders]);
+  }, [orders, analysisRange]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -983,165 +978,258 @@ const AdminDashboard = () => {
 
         {/* ANALYSIS TAB */}
         {activeTab === 'analysis' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-bold text-white mb-8 border-b border-gray-800 pb-4 flex items-center gap-3">
-              Business Performance Analysis
-              <TrendingUp className="w-6 h-6 text-accentOrange opacity-50" />
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Weekly Stats */}
-              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-accentOrange/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-accentOrange/10 transition-colors" />
-                <span className="inline-block px-3 py-1 bg-accentOrange/10 text-accentOrange text-[10px] font-black uppercase tracking-widest rounded-full mb-6">Last 7 Days</span>
-                <h3 className="text-xl font-bold text-gray-400 mb-8">Weekly Summary</h3>
-                
-                <div className="space-y-8">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Total Revenue</p>
-                    <p className="text-4xl font-black text-white tracking-tighter">
-                      <span className="text-accentOrange text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.weekly.revenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Total Profit</p>
-                    <p className="text-4xl font-black text-white tracking-tighter">
-                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.weekly.profit.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="pt-6 border-t border-white/5 flex justify-between items-center text-xs font-bold text-gray-500">
-                    <span>Total Sales Made</span>
-                    <span className="text-white">{analysisStats.weekly.count} orders</span>
-                  </div>
-                </div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-gray-50 text-gray-800 p-6 md:p-10 rounded-[2rem] shadow-inner border border-gray-200">
+            
+            {/* Header Row */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-3xl font-extrabold text-gray-900 flex items-center gap-2">
+                  Business Performance Analysis
+                  <TrendingUp className="w-6 h-6 text-gray-900" />
+                </h2>
+                <p className="text-xs text-gray-500 font-semibold mt-1">
+                  Detailed financial audits and cashier discount tracking for Riders Gear Nairobi.
+                </p>
               </div>
-
-              {/* Monthly Stats */}
-              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-blue-500/10 transition-colors" />
-                <span className="inline-block px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-6">Last 30 Days</span>
-                <h3 className="text-xl font-bold text-gray-400 mb-8">Monthly Summary</h3>
-                
-                <div className="space-y-8">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Total Revenue</p>
-                    <p className="text-4xl font-black text-white tracking-tighter">
-                      <span className="text-blue-500 text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.monthly.revenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Total Profit</p>
-                    <p className="text-4xl font-black text-white tracking-tighter">
-                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.monthly.profit.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="pt-6 border-t border-white/5 flex justify-between items-center text-xs font-bold text-gray-500">
-                    <span>Total Sales Made</span>
-                    <span className="text-white">{analysisStats.monthly.count} orders</span>
-                  </div>
-                </div>
+              
+              {/* Toggle Summary Pills */}
+              <div className="flex bg-gray-200/80 p-1 rounded-xl shadow-inner border border-gray-300/30 shrink-0">
+                <button
+                  onClick={() => setAnalysisRange('weekly')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${
+                    analysisRange === 'weekly'
+                      ? 'bg-white text-gray-900 shadow-md'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Weekly Summary
+                </button>
+                <button
+                  onClick={() => setAnalysisRange('monthly')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${
+                    analysisRange === 'monthly'
+                      ? 'bg-white text-gray-900 shadow-md'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Monthly Summary
+                </button>
               </div>
             </div>
 
-            {/* Discount Impact & Erosion Analysis */}
-            <div className="mt-8 bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-yellow-500/10 transition-colors" />
-              <span className="inline-block px-3 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-black uppercase tracking-widest rounded-full mb-6">Discount Analysis (7 Days)</span>
-              <h3 className="text-xl font-bold text-gray-400 mb-8">Discount Impact & Margin Erosion</h3>
+            {/* Metrics Cards Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Stats Breakdown */}
-                <div className="space-y-6 lg:border-r lg:border-gray-800 lg:pr-8">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Gross Revenue (Catalog Value)</p>
-                    <p className="text-3xl font-black text-white tracking-tighter">
-                      <span className="text-gray-500 text-sm mr-1.5 font-medium italic">KES</span>
-                      {analysisStats.weeklyDiscounts.totalGrossRevenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500 mb-1">Margin Erosion (Discounts Given)</p>
-                    <p className="text-3xl font-black text-white tracking-tighter">
-                      <span className="text-yellow-500 text-sm mr-1.5 font-medium italic">KES</span>
-                      {analysisStats.weeklyDiscounts.totalDiscountsGiven.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 mb-1">Net Revenue Collected</p>
-                    <p className="text-3xl font-black text-white tracking-tighter">
-                      <span className="text-green-500 text-sm mr-1.5 font-medium italic">KES</span>
-                      {analysisStats.weeklyDiscounts.netRevenueCollected.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+              {/* Gross Revenue */}
+              <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between min-h-28">
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2 leading-none">
+                  Gross Revenue
+                </span>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight tabular-nums flex items-baseline mt-auto">
+                  <span className="text-gray-400 text-xs font-bold mr-1 leading-none uppercase">KES</span>
+                  {analysisStats.totalGrossRevenue.toLocaleString()}
+                </h3>
+              </div>
 
-                {/* Sales Ratio Frequency */}
-                <div className="space-y-6 lg:border-r lg:border-gray-800 lg:px-8">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Discount Frequency Ratio</h4>
+              {/* Total Discounts */}
+              <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between min-h-28">
+                <span className="text-[9px] font-black uppercase tracking-widest text-green-600 block mb-2 leading-none">
+                  Total Discounts
+                </span>
+                <h3 className="text-2xl font-black text-green-600 tracking-tight tabular-nums flex items-baseline mt-auto">
+                  <span className="text-green-500 text-xs font-bold mr-1 leading-none uppercase">KES</span>
+                  {analysisStats.totalDiscountsGiven.toLocaleString()}
+                </h3>
+              </div>
+
+              {/* Net Revenue */}
+              <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between min-h-28">
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2 leading-none">
+                  Net Revenue
+                </span>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight tabular-nums flex items-baseline mt-auto">
+                  <span className="text-gray-400 text-xs font-bold mr-1 leading-none uppercase">KES</span>
+                  {analysisStats.netRevenueCollected.toLocaleString()}
+                </h3>
+              </div>
+
+              {/* Actual Net Profit */}
+              <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between min-h-28">
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2 leading-none">
+                  Actual Net Profit
+                </span>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight tabular-nums flex items-baseline mt-auto">
+                  <span className="text-gray-400 text-xs font-bold mr-1 leading-none uppercase">KES</span>
+                  {analysisStats.actualNetProfit.toLocaleString()}
+                </h3>
+              </div>
+
+              {/* Margin Erosion */}
+              <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between min-h-28">
+                <span className="text-[9px] font-black uppercase tracking-widest text-red-500 block mb-2 leading-none">
+                  Margin Erosion
+                </span>
+                <h3 className="text-2xl font-black text-red-500 tracking-tight tabular-nums flex items-baseline mt-auto">
+                  <span className="text-red-500 text-xs font-bold mr-1 leading-none uppercase">KES</span>
+                  {analysisStats.marginErosion.toLocaleString()}
+                </h3>
+              </div>
+
+            </div>
+
+            {/* Two Column Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              
+              {/* Left 2/3 Column */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* Discount Frequency Card */}
+                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-6 pb-3 border-b border-gray-100">
+                    Discount Frequency & Activity
+                  </h4>
                   
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-400">Discounted Transactions</span>
-                      <span className="text-yellow-500 font-bold">{analysisStats.weeklyDiscounts.discountedSalesCount} sales</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-400">Full Price Transactions</span>
-                      <span className="text-gray-200 font-bold">{analysisStats.weeklyDiscounts.fullPriceSalesCount} sales</span>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    <div className="pt-4">
-                      {(() => {
-                        const total = analysisStats.weeklyDiscounts.discountedSalesCount + analysisStats.weeklyDiscounts.fullPriceSalesCount;
-                        const discountedPct = total > 0 ? (analysisStats.weeklyDiscounts.discountedSalesCount / total) * 100 : 0;
-                        return (
-                          <div className="space-y-2">
-                            <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden flex">
-                              <div style={{ width: `${discountedPct}%` }} className="bg-yellow-500 h-full" />
-                              <div style={{ width: `${100 - discountedPct}%` }} className="bg-gray-700 h-full" />
-                            </div>
-                            <p className="text-[10px] text-gray-500 font-bold">
-                              {discountedPct.toFixed(0)}% of transactions involved discounts
-                            </p>
-                          </div>
-                        );
-                      })()}
+                    {/* Rate */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Discount Rate</span>
+                      <p className="text-3xl font-extrabold text-gray-900">
+                        {(() => {
+                          const total = analysisStats.discountedSalesCount + analysisStats.fullPriceSalesCount;
+                          return total > 0 ? ((analysisStats.discountedSalesCount / total) * 100).toFixed(1) : '0.0';
+                        })()}%
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-medium">of transactions were discounted.</p>
                     </div>
+
+                    {/* Discounted Orders */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Discounted Orders</span>
+                      <p className="text-3xl font-extrabold text-gray-400">
+                        <span className="text-green-600">{analysisStats.discountedSalesCount}</span>
+                        <span className="mx-1 text-gray-300">/</span>
+                        <span>{analysisStats.discountedSalesCount + analysisStats.fullPriceSalesCount}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-medium">completed sales with manual pricing overrides.</p>
+                    </div>
+
+                    {/* Full Price Orders */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Full-Price Orders</span>
+                      <p className="text-3xl font-extrabold text-gray-400">
+                        <span className="text-gray-900">{analysisStats.fullPriceSalesCount}</span>
+                        <span className="mx-1 text-gray-300">/</span>
+                        <span>{analysisStats.discountedSalesCount + analysisStats.fullPriceSalesCount}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-medium">completed sales sold at standard catalog pricing.</p>
+                    </div>
+
                   </div>
                 </div>
 
-                {/* Top Discounted Items */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Top Discounted Products</h4>
+                {/* Top Discounted Products Card */}
+                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-6 pb-3 border-b border-gray-100">
+                    Top Discounted Products
+                  </h4>
                   
-                  {analysisStats.weeklyDiscounts.topDiscountedProducts.length === 0 ? (
-                    <p className="text-xs text-gray-500 italic py-4">No discounted items sold this week.</p>
+                  {analysisStats.topDiscountedProducts.length === 0 ? (
+                    <div className="py-12 text-center text-gray-400 text-xs font-medium italic">
+                      No discounted product listings in this period.
+                    </div>
                   ) : (
-                    <div className="space-y-3">
-                      {analysisStats.weeklyDiscounts.topDiscountedProducts.map((p, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-3 text-xs bg-black/20 p-2.5 rounded-xl border border-gray-800/40">
-                          <div className="truncate flex-1">
-                            <p className="text-white font-bold truncate uppercase">{p.name}</p>
-                            <p className="text-[10px] text-gray-500 font-bold">{p.count} units sold with discount</p>
+                    <div className="divide-y divide-gray-100">
+                      {analysisStats.topDiscountedProducts.map((p, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 uppercase leading-none">{p.name}</p>
+                            <span className="text-[10px] text-gray-400 font-medium mt-1 block">
+                              {p.count} units sold with manual pricing adjustments
+                            </span>
                           </div>
-                          <span className="text-yellow-500 font-black shrink-0">- KES {p.amount.toLocaleString()}</span>
+                          <span className="text-sm font-extrabold text-red-500 shrink-0">
+                            - KES {p.amount.toLocaleString()}
+                          </span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+
               </div>
+
+              {/* Right Audit Log Column */}
+              <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.01)] lg:col-span-1 min-h-[350px] flex flex-col">
+                <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-100 shrink-0">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                    Audit Log
+                  </h4>
+                  <span className="bg-green-50 text-green-600 border border-green-200/50 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider">
+                    {analysisStats.discountedSalesCount} DISCOUNTED SALES
+                  </span>
+                </div>
+
+                {analysisStats.discountedSalesList.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Tag className="w-6 h-6 text-gray-400/80" />
+                    </div>
+                    <p className="text-xs text-gray-400 font-medium italic">
+                      No manual overrides recorded in this time range.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto max-h-[400px] divide-y divide-gray-100 pr-1">
+                    {analysisStats.discountedSalesList.map((order, idx) => {
+                      const orderDiscount = (order.items || []).reduce((acc, item) => {
+                        const orig = item.originalPrice !== undefined ? item.originalPrice : (item.original_price !== undefined ? item.original_price : item.price);
+                        const final = item.finalPrice !== undefined ? item.finalPrice : (item.final_price !== undefined ? item.final_price : item.price);
+                        return acc + (Math.max(0, orig - final) * (item.quantity || 1));
+                      }, 0);
+
+                      return (
+                        <div key={idx} className="py-3 first:pt-0 last:pb-0 flex flex-col gap-1.5">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-xs font-bold text-gray-900 leading-none">
+                                {order.customerName || 'Cashier Sale'}
+                              </p>
+                              <span className="text-[9px] text-gray-400 font-medium mt-1 block">
+                                {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : new Date(order.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <span className="text-xs font-black text-red-500">
+                              - KES {orderDiscount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="bg-gray-50 p-2 rounded-lg border border-gray-100 space-y-1">
+                            {(order.items || []).map((item, itemIdx) => {
+                              const orig = item.originalPrice !== undefined ? item.originalPrice : (item.original_price !== undefined ? item.original_price : item.price);
+                              const final = item.finalPrice !== undefined ? item.finalPrice : (item.final_price !== undefined ? item.final_price : item.price);
+                              const discount = Math.max(0, orig - final) * (item.quantity || 1);
+                              if (discount <= 0) return null;
+                              return (
+                                <div key={itemIdx} className="flex justify-between text-[9px] text-gray-500 font-medium">
+                                  <span>{item.quantity}x {item.name}</span>
+                                  <span className="text-red-400 font-bold">- KES {discount.toLocaleString()}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
             </div>
 
-            <div className="mt-12 bg-gray-900/50 border border-gray-800 rounded-2xl p-6">
-               <p className="text-gray-500 text-xs italic">
-                 Note: Profit is calculated based on the buying price recorded at the time of each product entry.
-                 Only completed orders are included in these statistics.
-               </p>
-            </div>
+            {/* Footer Note */}
+            <p className="text-[11px] text-gray-500 italic mt-8 bg-transparent border-t border-gray-200/60 pt-6 leading-relaxed">
+              Note: Profit is calculated based on the final sold prices recorded at checkout and their corresponding buying prices. Margin Erosion measures the potential gross revenue forfeited to customer discounts. Only completed sales transactions are compiled here.
+            </p>
           </div>
         )}
 

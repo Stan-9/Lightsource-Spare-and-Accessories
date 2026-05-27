@@ -102,6 +102,18 @@
   text-align: center;
 }
 
+.footer-compliance {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(234, 222, 201, 0.5);
+}
+
+.footer-compliance a {
+  color: var(--footer-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 a:focus {
   outline: 2px solid var(--footer-link-hover);
 }

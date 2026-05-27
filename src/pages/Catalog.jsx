@@ -108,7 +108,7 @@ const Catalog = () => {
 
     return (
       <div 
-        className="bg-machineGray/20 rounded-sm overflow-hidden border-2 border-machineGray/50 hover:border-accentOrange transition-all duration-500 hover:shadow-[0_0_30px_rgba(200,122,62,0.15)] flex flex-col group relative animate-mechanical-slide"
+        className="bg-machineGray/20 rounded-sm overflow-hidden border-2 border-machineGray/50 flex flex-col group relative animate-mechanical-slide"
         style={{ animationDelay: `${index * 50}ms` }}
       >
         <div className="absolute top-0 left-0 z-30 bg-machineGray text-[8px] font-black px-2 py-0.5 text-gray-500 uppercase font-technical">
@@ -127,7 +127,7 @@ const Catalog = () => {
             <img 
               src={product.imageUrl} 
               alt={product.name} 
-              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover"
             />
           ) : (
             <div className="flex flex-col items-center gap-2 opacity-10">
@@ -155,7 +155,7 @@ const Catalog = () => {
         <div className="p-2 sm:p-4 md:p-5 lg:p-6 flex flex-col flex-1 relative">
           <div className="mb-2 sm:mb-6">
             <Link to={`/product/${product.id}`} className="block">
-              <h3 className="text-xs sm:text-base md:text-lg lg:text-xl font-black text-white group-hover:text-accentOrange transition-colors duration-300 leading-tight font-technical uppercase tracking-tighter line-clamp-2">
+              <h3 className="text-xs sm:text-base md:text-lg lg:text-xl font-black text-white leading-tight font-technical uppercase tracking-tighter line-clamp-2">
                 {product.name}
               </h3>
             </Link>

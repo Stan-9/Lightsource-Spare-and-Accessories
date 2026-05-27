@@ -7,14 +7,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        pitchBlack: '#0A0A0A',
-        darkBg: '#0F0F0F',
-        accentOrange: '#FF6B00', // Safety Orange
-        machineGray: '#2D2D2D',
-        steelSilver: '#E0E0E0',
-        machineryGreen: '#00FF41',
-        brakeRed: '#FF0000',
-        cardBg: '#161618',
+        pitchBlack: '#1C1917',
+        darkBg: '#231F1B',
+        accentOrange: '#C87A3E',
+        machineGray: '#322D27',
+        steelSilver: '#F5EBE0',
+        machineryGreen: '#81B29A',
+        brakeRed: '#C95A49',
+        cardBg: '#2E2924',
       },
       fontFamily: {
         poppins: ['Poppins', 'sans-serif'],

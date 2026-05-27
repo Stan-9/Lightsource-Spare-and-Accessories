@@ -50,13 +50,13 @@
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(
     45deg,
-    #FF6B00 25%,
-    #E65100 25%,
-    #E65100 50%,
-    #FF6B00 50%,
-    #FF6B00 75%,
-    #E65100 75%,
-    #E65100 100%
+    #C87A3E 25%,
+    #B0652D 25%,
+    #B0652D 50%,
+    #C87A3E 50%,
+    #C87A3E 75%,
+    #B0652D 75%,
+    #B0652D 100%
   );
   background-size: 8px 8px;
 }

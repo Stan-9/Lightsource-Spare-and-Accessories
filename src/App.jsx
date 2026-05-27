@@ -7,10 +7,16 @@ import AdminDashboard from './pages/AdminDashboard';
 import Checkout from './pages/Checkout';
 import Business from './pages/Business';
 import NotFound from './pages/NotFound';
+import Catalog from './pages/Catalog';
+import ProductDetail from './pages/ProductDetail';
+import Brands from './pages/Brands';
+import Resources from './pages/Resources';
+import Sitemap from './pages/Sitemap';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase/config';
+import Footer from './components/Footer';
 
 // The single authorised admin email — set in .env as VITE_ADMIN_EMAIL
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
@@ -61,6 +67,16 @@ function App() {
           />
           <Routes>
             <Route path="/" element={<StoreFront />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/catalog/:category" element={<Catalog />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/brands" element={<Brands />} />
+            <Route path="/brand/:brand" element={<Brands />} />
+            <Route path="/resources" element={<Resources />} />
+            <Route path="/resources/installation-guides" element={<Resources />} />
+            <Route path="/resources/maintenance-tips" element={<Resources />} />
+            <Route path="/resources/customer-showcase" element={<Resources />} />
+            <Route path="/sitemap" element={<Sitemap />} />
             <Route path="/business" element={<Business />} />
             <Route path="/checkout" element={<Checkout />} />
 
@@ -81,6 +97,7 @@ function App() {
           </Routes>
         </CartProvider>
       </Router>
+    <Footer />
     </ErrorBoundary>
   );
 }

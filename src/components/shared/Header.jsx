@@ -35,7 +35,11 @@ const Header = ({ shopName }) => {
 
           <nav className="hidden md:flex items-center gap-6">
             <Link to="/" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Shop</Link>
+            <Link to="/catalog" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Catalog</Link>
+            <Link to="/brands" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Brands</Link>
+            <Link to="/resources" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Resources</Link>
             <Link to="/business" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Business</Link>
+            <Link to="/sitemap" className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-accentOrange transition-colors">Sitemap</Link>
           </nav>
         </div>
 

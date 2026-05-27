@@ -2,12 +2,12 @@ import './Footer.css';
 
 function Footer() {
   const currentYear = new Date().getFullYear();
-  const brandName = 'Your Brand Name, Inc.';
-  const supportEmail = 'support@yourstore.com';
-  const phoneNumber = '+1 (800) 123-4567';
+  const brandName = 'Lightsource Spare Parts and Accessories, Inc.';
+  const supportEmail = 'stanleymaina2003@gmail.com';
+  const phoneNumber = '+254 116 575039';
   const chatStatus = '24/7 Support'; // adjust as needed
-  const chatLink = '#'; // replace with real chat URL
-  const chatLabel = chatStatus.includes('Offline') ? 'Leave a message' : 'Start chat';
+  const chatLink = '#';
+  const chatLabel = `Live Chat – ${chatStatus}`;
 
   return (
     <footer className="site-footer">
@@ -16,9 +16,7 @@ function Footer() {
         <section className="footer-section">
           <h4>About &amp; Corporate</h4>
           <ul>
-            <li><a href="/about">About Us</a></li>
-            <li><a href="/careers">Careers</a></li>
-            <li><a href="/press">Press</a></li>
+            <li><a href="/business">About Us</a></li>
           </ul>
         </section>
 
@@ -32,14 +30,6 @@ function Footer() {
             <li><a href={chatLink} className="chat-link">{chatLabel}</a></li>
             <li className="hours">Mon–Fri, 9 AM – 6 PM EST</li>
           </ul>
-        </section>
-
-        {/* GDPR / CCPA */}
-        <section className="footer-section compliance">
-          <p>
-            We respect your privacy.{' '}
-            <a href="/privacy-compliance">Learn how</a> we handle your data under GDPR/CCPA.
-          </p>
         </section>
 
         {/* Social proof */}
@@ -59,21 +49,6 @@ function Footer() {
             <li>
               <a href="https://tiktok.com/@yourbrand" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
                 <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/tiktok.svg" alt="TikTok" />
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/yourbrand" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)">
-                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/x.svg" alt="X" />
-              </a>
-            </li>
-            <li>
-              <a href="https://pinterest.com/yourbrand" target="_blank" rel="noopener noreferrer" aria-label="Pinterest">
-                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/pinterest.svg" alt="Pinterest" />
-              </a>
-            </li>
-            <li>
-              <a href="https://youtube.com/yourbrand" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
-                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/youtube.svg" alt="YouTube" />
               </a>
             </li>
           </ul>

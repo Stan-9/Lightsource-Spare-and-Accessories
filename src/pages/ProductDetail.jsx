@@ -243,7 +243,7 @@ const ProductDetail = () => {
                 <img 
                   src={product.imageUrl} 
                   alt={product.name} 
-                  className="w-full h-full object-contain grayscale hover:grayscale-0 transition-all duration-700"
+                  className="w-full h-full object-contain transition-all duration-700"
                 />
               ) : (
                 <Settings className="w-24 h-24 text-machineGray animate-spin-slow opacity-20" />
@@ -474,7 +474,7 @@ const ProductDetail = () => {
                 <div key={p.id} className="bg-machineGray/10 border-2 border-machineGray/40 hover:border-accentOrange p-4 rounded-sm transition flex flex-col group">
                   <div className="relative aspect-video bg-pitchBlack flex items-center justify-center overflow-hidden mb-4 border border-machineGray/50">
                     {p.imageUrl ? (
-                      <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition" />
+                      <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain transition" />
                     ) : (
                       <Settings className="w-10 h-10 text-machineGray/50 animate-spin-slow" />
                     )}

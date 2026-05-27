@@ -5,6 +5,8 @@ import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
+import logo from '../../assets/logo.png';
+
 const Header = ({ shopName }) => {
   const { totalItems, grandTotal, toggleDrawer } = useCart();
   const navigate = useNavigate();
@@ -25,12 +27,11 @@ const Header = ({ shopName }) => {
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-sm shrink-0 bg-accentOrange flex items-center justify-center font-black text-white shadow-[0_0_20px_rgba(255,107,0,0.3)] group-hover:rotate-90 transition-transform duration-500">
-              {shopName ? shopName.charAt(0) : 'L'}
-            </div>
-            <h1 className="text-xl font-black tracking-[0.2em] text-white hidden sm:block uppercase font-technical">
-              {shopName || "LightSource"}
-            </h1>
+            <img 
+              src={logo} 
+              alt={shopName || "LightSource"} 
+              className="h-14 w-auto shrink-0 transition-transform duration-500 group-hover:scale-105" 
+            />
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">

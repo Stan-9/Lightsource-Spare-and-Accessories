@@ -75,7 +75,7 @@ const StoreFront = () => {
             <img 
               src={product.imageUrl} 
               alt={product.name} 
-              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
             />
           ) : (
             <div className="flex flex-col items-center gap-2 opacity-10">
@@ -266,22 +266,7 @@ const StoreFront = () => {
         )}
       </main>
 
-      <footer className="border-t-2 border-machineGray py-20 bg-pitchBlack text-center mt-auto">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center gap-8">
-            <div className="w-16 h-16 rounded-sm bg-accentOrange flex items-center justify-center font-black text-white shadow-2xl shadow-accentOrange/20 text-3xl font-technical">
-              {settings?.shopName ? settings.shopName.charAt(0) : 'L'}
-            </div>
-            <h2 className="text-white font-black text-2xl tracking-[0.3em] font-technical uppercase">
-              {settings.shopName || "LightSource Motors"}
-            </h2>
-            <div className="h-[2px] w-24 bg-accentOrange" />
-            <p className="text-gray-600 text-[9px] font-black uppercase tracking-[0.5em] font-technical">
-              &copy; {new Date().getFullYear()} {settings.shopName || "LightSource Motors"} // Industrial Logistics
-            </p>
-          </div>
-        </div>
-      </footer>
+
     </div>
   );
 };

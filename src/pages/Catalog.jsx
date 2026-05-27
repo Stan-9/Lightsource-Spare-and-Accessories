@@ -127,7 +127,7 @@ const Catalog = () => {
             <img 
               src={product.imageUrl} 
               alt={product.name} 
-              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
             />
           ) : (
             <div className="flex flex-col items-center gap-2 opacity-10">

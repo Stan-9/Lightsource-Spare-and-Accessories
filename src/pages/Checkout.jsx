@@ -192,7 +192,7 @@ const Checkout = () => {
                   <div key={item.id} className="flex gap-4 group">
                     <div className="w-16 h-16 bg-pitchBlack border border-machineGray rounded-sm overflow-hidden shrink-0">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-all" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center opacity-20">
                           <ShoppingCart className="w-6 h-6" />

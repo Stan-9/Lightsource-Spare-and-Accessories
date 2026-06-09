@@ -31,7 +31,7 @@ const Business = () => {
             operators, and retail businesses across Kenya. Contact us for bulk pricing and fast delivery.
           </p>
           <a
-            href="https://wa.me/254700000000?text=Hi%20LightSource%2C%20I%20have%20a%20business%20enquiry"
+            href="https://wa.me/254116575039?text=Hi%20LightSource%2C%20I%20have%20a%20business%20enquiry"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 bg-accentOrange hover:bg-orange-600 text-white font-black px-10 py-5 rounded-2xl shadow-[0_15px_40px_rgba(255,107,0,0.35)] transition transform hover:-translate-y-1 text-lg"
@@ -70,7 +70,7 @@ const Business = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
             {[
               { icon: MapPin, label: 'Location', value: 'Nairobi, Kenya' },
-              { icon: Phone, label: 'WhatsApp', value: '+254 700 000 000' },
+              { icon: Phone, label: 'WhatsApp', value: '+254 116 575039' },
               { icon: Clock, label: 'Hours', value: 'Mon–Sat · 8am – 6pm' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-gray-900 border border-gray-800 p-8 rounded-2xl">
@@ -98,7 +98,7 @@ const Business = () => {
               Browse Catalogue
             </Link>
             <a
-              href="https://wa.me/254700000000?text=Hi%20LightSource%2C%20I%20would%20like%20to%20place%20a%20bulk%20order"
+              href="https://wa.me/254116575039?text=Hi%20LightSource%2C%20I%20would%20like%20to%20place%20a%20bulk%20order"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-accentOrange hover:bg-orange-600 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-accentOrange/20 transition"

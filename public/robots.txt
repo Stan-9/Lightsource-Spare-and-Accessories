@@ -1,5 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
 
-# Sitemap
-Sitemap: /sitemap
+# XML Sitemap for Search Engines
+Sitemap: https://lightsourcespares.com/sitemap.xml
+
+# Allow crawling of dynamic product pages
+Allow: /product/
+Allow: /catalog/

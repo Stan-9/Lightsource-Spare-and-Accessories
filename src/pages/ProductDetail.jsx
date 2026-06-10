@@ -115,11 +115,11 @@ const ProductDetail = () => {
   useEffect(() => {
     if (!product) return;
 
-    const title = `${product.name} - Genuine Spare Parts`;
+    const title = product.name;
     const description = product.description 
       ? product.description.slice(0, 155) 
       : `Acquire genuine ${product.name} from LightSource Motors. Certified compatibility and durability.`;
-    const canonical = `${window.location.origin}/product/${product.id}`;
+    const canonical = `https://lightsourcespares.com/product/${product.id}`;
 
     // Schema.org Structured Data
     const avgRating = reviews.length > 0 
@@ -176,7 +176,8 @@ const ProductDetail = () => {
       title,
       description,
       canonicalUrl: canonical,
-      schemaData: productSchema
+      schemaData: productSchema,
+      ogImage: product.imageUrl
     });
   }, [product, reviews]);
 

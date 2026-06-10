@@ -1,24 +1,44 @@
 /**
  * Dynamic SEO & Structured Data Injection Helper
  */
-export const updateSEO = ({ title, description, canonicalUrl, schemaData }) => {
+export const updateSEO = ({ title, description, canonicalUrl, schemaData, ogImage }) => {
   if (typeof window === 'undefined') return;
 
   // 1. Title
   if (title) {
-    document.title = `${title} | LightSource Motors`;
+    document.title = title;
   }
 
-  // 2. Meta Description
-  let metaDesc = document.querySelector('meta[name="description"]');
-  if (description) {
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
+  const setMetaTag = (attrName, attrValue, content) => {
+    if (!content) return;
+    let element = document.querySelector(`meta[${attrName}="${attrValue}"]`);
+    if (!element) {
+      element = document.createElement('meta');
+      element.setAttribute(attrName, attrValue);
+      document.head.appendChild(element);
     }
-    metaDesc.setAttribute('content', description);
+    element.setAttribute('content', content);
+  };
+
+  // 2. Meta Tags
+  setMetaTag('name', 'description', description);
+  
+  // Open Graph
+  setMetaTag('property', 'og:title', title);
+  setMetaTag('property', 'og:description', description);
+  setMetaTag('property', 'og:url', canonicalUrl);
+  setMetaTag('property', 'og:image', ogImage);
+  if (canonicalUrl && canonicalUrl.includes('/product/')) {
+    setMetaTag('property', 'og:type', 'product');
+  } else {
+    setMetaTag('property', 'og:type', 'website');
   }
+
+  // Twitter
+  setMetaTag('name', 'twitter:card', 'summary_large_image');
+  setMetaTag('name', 'twitter:title', title);
+  setMetaTag('name', 'twitter:description', description);
+  setMetaTag('name', 'twitter:image', ogImage);
 
   // 3. Canonical Tag
   let canonicalLink = document.querySelector('link[rel="canonical"]');

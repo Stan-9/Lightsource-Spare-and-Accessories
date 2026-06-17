@@ -12,7 +12,6 @@ import ProductDetail from './pages/ProductDetail';
 import Brands from './pages/Brands';
 import Resources from './pages/Resources';
 import Sitemap from './pages/Sitemap';
-import SitemapXML from './pages/SitemapXML';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -78,7 +77,6 @@ function App() {
             <Route path="/resources/maintenance-tips" element={<Resources />} />
             <Route path="/resources/customer-showcase" element={<Resources />} />
             <Route path="/sitemap" element={<Sitemap />} />
-            <Route path="/sitemap.xml" element={<SitemapXML />} />
             <Route path="/business" element={<Business />} />
             <Route path="/checkout" element={<Checkout />} />
 

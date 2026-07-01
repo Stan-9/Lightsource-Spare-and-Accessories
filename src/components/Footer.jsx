@@ -4,7 +4,7 @@ function Footer() {
   const currentYear = new Date().getFullYear();
   const brandName = 'Lightsource Spare Parts and Accessories, Inc.';
   const supportEmail = 'stanleymaina2003@gmail.com';
-  const phoneNumber = '+254 116 575039';
+  const phoneNumber = '+254 716 778794';
   const chatStatus = '24/7 Support'; // adjust as needed
   const chatLink = 'https://lightsource.pages.dev/contact';
   const chatLabel = `Live Chat – ${chatStatus}`;
@@ -54,7 +54,7 @@ function Footer() {
               </a>
             </li>
             <li>
-              <a href="https://wa.me/254116575039" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+              <a href="https://wa.me/254716778794" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
                 <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/whatsapp.svg" alt="WhatsApp" />
               </a>
             </li>

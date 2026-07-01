@@ -97,7 +97,7 @@ const AdminDashboard = () => {
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('all');
 
   // Analysis range selection
-  const [analysisRange, setAnalysisRange] = useState('weekly'); // weekly | monthly
+  const [analysisRange, setAnalysisRange] = useState('all'); // all | weekly | monthly
 
   // Print receipt state
   const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState(null);
@@ -363,6 +363,7 @@ const AdminDashboard = () => {
     const cutoffDate = new Date(now.getTime() - (rangeDays * 24 * 60 * 60 * 1000));
 
     const rangedOrders = orders.filter(o => {
+      if (analysisRange === 'all') return true;
       const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
       return date >= cutoffDate;
     });
@@ -521,6 +522,14 @@ const AdminDashboard = () => {
                     </h3>
                     <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Total money tied in stock</p>
                   </div>
+                  <div className="border-b md:border-b-0 md:border-r border-white/10 pb-6 md:pb-0 md:pr-8">
+                    <span className="text-green-500 font-black uppercase tracking-[0.2em] text-[10px] mb-2 block">Warehouse Value (Retail)</span>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-green-500 text-lg mr-2 font-medium italic">KES</span>
+                      {stats.totalValue.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-500 mt-1 text-[10px] font-bold uppercase tracking-wider">Expected income after full sale</p>
+                  </div>
                   
 
                 </div>
@@ -550,7 +559,7 @@ const AdminDashboard = () => {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -617,6 +626,43 @@ const AdminDashboard = () => {
                     <div className="text-center py-10 opacity-30 italic text-sm">Inventory levels are healthy</div>
                   )}
                 </div>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-xl">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-yellow-500" />
+                    Pending / Unpaid Orders
+                  </h3>
+                  <button onClick={() => {setActiveTab('orders'); setOrderPaymentFilter('all'); setOrderStatusFilter('pending');}} className="text-yellow-500 text-xs font-black uppercase tracking-widest hover:underline">View All</button>
+                </div>
+                {loading ? (
+                  <div className="animate-pulse space-y-4">
+                    {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-800 rounded-xl" />)}
+                  </div>
+                ) : orders.filter(o => o.status === 'pending' || (o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid')).length === 0 ? (
+                  <div className="text-center py-10 opacity-30 italic text-sm">No pending or unpaid orders</div>
+                ) : (
+                  <div className="space-y-4">
+                    {orders.filter(o => o.status === 'pending' || (o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid')).slice(0, 4).map(order => (
+                      <div key={order.id} className="flex items-center gap-4 p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 hover:border-yellow-500/30 transition-colors group">
+                        <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-yellow-500">
+                          <AlertCircle className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-400 font-bold">{new Date(order.createdAt?.toDate()).toLocaleDateString()}</p>
+                          <h4 className="text-sm font-bold text-white truncate">{order.customerName || `${order.items.length} items`}</h4>
+                          <p className={`text-[10px] uppercase font-black text-yellow-500`}>
+                            {order.paymentType === 'Credit' && order.paymentStatus === 'Unpaid' ? 'UNPAID CREDIT' : 'PENDING FULFILLMENT'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-white italic">KES {order.total?.toLocaleString() || '0'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -994,6 +1040,16 @@ const AdminDashboard = () => {
               
               {/* Toggle Summary Pills */}
               <div className="flex bg-black/40 p-1 rounded-xl shadow-inner border border-gray-800 shrink-0">
+                <button
+                  onClick={() => setAnalysisRange('all')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${
+                    analysisRange === 'all'
+                      ? 'bg-accentOrange text-white shadow-md'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  All Time
+                </button>
                 <button
                   onClick={() => setAnalysisRange('weekly')}
                   className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${

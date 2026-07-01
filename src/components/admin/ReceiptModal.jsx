@@ -8,7 +8,7 @@ const ReceiptModal = ({ isOpen, onClose, order, settings }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-pitchBlack/80 backdrop-blur-sm no-print">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-pitchBlack/80 backdrop-blur-sm">
       <div className="bg-white text-black w-full max-w-md rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 no-print bg-machineGray text-white">
           <h3 className="font-bold uppercase tracking-tighter flex items-center gap-2">

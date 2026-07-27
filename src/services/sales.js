@@ -104,6 +104,15 @@ export const executeTransaction = async (orderData) => {
       const netTotal = itemsWithCost.reduce((sum, item) => sum + (item.final_price * item.quantity), 0);
       const flaggedForReview = itemsWithCost.some(item => item.was_discounted);
 
+      const paymentType = orderData.paymentType || 'Cash';
+      const paymentStatus = orderData.paymentStatus || 'Paid';
+      const initialStatus = orderData.status || (paymentStatus === 'Unpaid' || paymentType === 'Credit' ? 'pending' : 'completed');
+      
+      const amountPaid = orderData.amountPaid !== undefined 
+        ? Number(orderData.amountPaid) 
+        : (paymentStatus === 'Paid' ? netTotal : 0);
+      const balanceRemaining = Math.max(0, netTotal - amountPaid);
+
       const newOrderRef = doc(ordersCollection);
       transaction.set(newOrderRef, {
         ...orderData,
@@ -113,9 +122,11 @@ export const executeTransaction = async (orderData) => {
         net_total: netTotal,
         flaggedForReview: flaggedForReview,
         createdAt: serverTimestamp(),
-        status: orderData.status || 'completed',
-        paymentType: orderData.paymentType || 'Cash',
-        paymentStatus: orderData.paymentStatus || 'Paid',
+        status: initialStatus,
+        paymentType: paymentType,
+        paymentStatus: paymentStatus,
+        amountPaid: amountPaid,
+        balanceRemaining: balanceRemaining,
       });
     });
     return result(true);
@@ -139,10 +150,47 @@ export const subscribeOrders = (callback) => {
   });
 };
 
-export const updateOrderStatus = async (orderId, status) => {
+export const updateOrderStatus = async (orderId, newStatus) => {
   try {
-    const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, { status });
+    await runTransaction(db, async (transaction) => {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await transaction.get(orderRef);
+      if (!orderDoc.exists()) {
+        throw new Error("Order not found");
+      }
+
+      const orderData = orderDoc.data();
+      const currentStatus = orderData.status;
+
+      // Handle stock restoration/re-deduction on cancellation changes
+      if (currentStatus !== 'cancelled' && newStatus === 'cancelled') {
+        // Restore stock
+        for (const item of (orderData.items || [])) {
+          if (item.id) {
+            const productRef = doc(db, 'products', item.id);
+            const productDoc = await transaction.get(productRef);
+            if (productDoc.exists()) {
+              const currentStock = productDoc.data().stock || 0;
+              transaction.update(productRef, { stock: currentStock + item.quantity });
+            }
+          }
+        }
+      } else if (currentStatus === 'cancelled' && newStatus !== 'cancelled') {
+        // Re-deduct stock
+        for (const item of (orderData.items || [])) {
+          if (item.id) {
+            const productRef = doc(db, 'products', item.id);
+            const productDoc = await transaction.get(productRef);
+            if (productDoc.exists()) {
+              const currentStock = productDoc.data().stock || 0;
+              transaction.update(productRef, { stock: Math.max(0, currentStock - item.quantity) });
+            }
+          }
+        }
+      }
+
+      transaction.update(orderRef, { status: newStatus });
+    });
     return result(true);
   } catch (error) {
     console.error("Error updating order status: ", error);
@@ -153,13 +201,54 @@ export const updateOrderStatus = async (orderId, status) => {
 export const updateOrderPayment = async (orderId, paymentStatus, paymentType) => {
   try {
     const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, { 
+    const updateData = { 
       paymentStatus,
       paymentType: paymentType || 'Cash' 
-    });
+    };
+    // If setting to Paid, mark status as completed and balanceRemaining as 0
+    if (paymentStatus === 'Paid') {
+      updateData.status = 'completed';
+      updateData.balanceRemaining = 0;
+    }
+    await updateDoc(orderRef, updateData);
     return result(true);
   } catch (error) {
     console.error("Error updating order payment: ", error);
+    return result(false, null, error.message);
+  }
+};
+
+export const recordCreditorPayment = async (orderId, paymentAmount) => {
+  try {
+    await runTransaction(db, async (transaction) => {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await transaction.get(orderRef);
+      if (!orderDoc.exists()) {
+        throw new Error("Order not found");
+      }
+
+      const orderData = orderDoc.data();
+      const grandTotal = Number(orderData.net_total || orderData.total || 0);
+      const currentPaid = Number(orderData.amountPaid || 0);
+      const newAmountPaid = currentPaid + Number(paymentAmount);
+      const newBalanceRemaining = Math.max(0, grandTotal - newAmountPaid);
+      const isFullyPaid = newBalanceRemaining === 0;
+
+      const updates = {
+        amountPaid: newAmountPaid,
+        balanceRemaining: newBalanceRemaining,
+      };
+
+      if (isFullyPaid) {
+        updates.paymentStatus = 'Paid';
+        updates.status = 'completed';
+      }
+
+      transaction.update(orderRef, updates);
+    });
+    return result(true);
+  } catch (error) {
+    console.error("Error recording creditor payment: ", error);
     return result(false, null, error.message);
   }
 };

@@ -11,6 +11,7 @@ import {
   updateCategoriesList,
   updateOrderStatus,
   updateOrderPayment,
+  recordCreditorPayment,
 } from '../firebase/products';
 import ConfirmModal from '../components/shared/ConfirmModal';
 import { auth } from '../firebase/config';
@@ -99,11 +100,22 @@ const AdminDashboard = () => {
   // Analysis range selection
   const [analysisRange, setAnalysisRange] = useState('all'); // all | weekly | monthly
 
+  // Partial payment inputs state: { [orderId]: amount }
+  const [partialPaymentInputs, setPartialPaymentInputs] = useState({});
+
   // Print receipt state
   const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const navigate = useNavigate();
+
+  const activeCreditorOrders = useMemo(() => {
+    return orders.filter(o => {
+      if (o.paymentType !== 'Credit') return false;
+      if (o.balanceRemaining !== undefined) return o.balanceRemaining > 0;
+      return o.paymentStatus === 'Unpaid';
+    });
+  }, [orders]);
 
   useEffect(() => {
     const unsubProducts = subscribeProducts((data) => {
@@ -212,6 +224,21 @@ const AdminDashboard = () => {
       toast.success('Payment status updated');
     } catch (error) {
       toast.error('Failed to update payment');
+    }
+  };
+
+  const handleRecordPartialPayment = async (orderId) => {
+    const inputVal = Number(partialPaymentInputs[orderId] || 0);
+    if (isNaN(inputVal) || inputVal <= 0) {
+      toast.error('Enter a valid payment amount');
+      return;
+    }
+    try {
+      await recordCreditorPayment(orderId, inputVal);
+      setPartialPaymentInputs(prev => ({ ...prev, [orderId]: '' }));
+      toast.success('Payment recorded successfully');
+    } catch (error) {
+      toast.error('Failed to record payment');
     }
   };
 
@@ -456,10 +483,10 @@ const AdminDashboard = () => {
         <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center">
           <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 rounded-xl bg-accentOrange flex items-center justify-center font-bold text-white shadow-lg shadow-accentOrange/30">
-              L
+              G
             </div>
             <div>
-              <h1 className="font-bold text-lg text-white leading-tight">LightSource</h1>
+              <h1 className="font-bold text-lg text-white leading-tight">Gear Link</h1>
               <p className="text-xs text-gray-400 font-medium tracking-wide italic">Admin Panel</p>
             </div>
           </div>
@@ -481,7 +508,7 @@ const AdminDashboard = () => {
             id="creditors" 
             icon={TrendingDown} 
             label="Creditors" 
-            badge={orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').length} 
+            badge={activeCreditorOrders.length} 
             activeTab={activeTab} setActiveTab={setActiveTab}
           />
           <NavButton id="settings" icon={Settings} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -1303,21 +1330,28 @@ const AdminDashboard = () => {
                   <thead className="bg-gray-900/90 backdrop-blur sticky top-0 z-10 font-bold border-b border-gray-800 text-gray-400 text-sm tracking-wider uppercase">
                     <tr>
                       <th className="p-4">Customer/Time</th>
-                      <th className="p-4">Amount Owed</th>
+                      <th className="p-4">Total Order</th>
+                      <th className="p-4">Amount Paid</th>
+                      <th className="p-4">Balance Remaining</th>
                       <th className="p-4">Credit Age</th>
-                      <th className="p-4 text-center">Action</th>
+                      <th className="p-4 text-center">Record Payment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/50">
-                    {orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').length === 0 ? (
+                    {activeCreditorOrders.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="p-12 text-center text-gray-500 italic">
+                        <td colSpan="6" className="p-12 text-center text-gray-500 italic">
                           No outstanding debts found. Good job!
                         </td>
                       </tr>
                     ) : (
-                      orders.filter(o => o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid').map((order) => {
-                        const ageInDays = Math.floor((new Date() - order.createdAt?.toDate()) / (1000 * 60 * 60 * 24));
+                      activeCreditorOrders.map((order) => {
+                        const grandTotal = Number(order.net_total || order.total || 0);
+                        const paidAmount = Number(order.amountPaid !== undefined ? order.amountPaid : (order.paymentStatus === 'Paid' ? grandTotal : 0));
+                        const balance = Number(order.balanceRemaining !== undefined ? order.balanceRemaining : (order.paymentStatus === 'Paid' ? 0 : grandTotal));
+
+                        const createdAtDate = order.createdAt?.toDate ? order.createdAt.toDate() : (order.createdAt ? new Date(order.createdAt) : new Date());
+                        const ageInDays = Math.floor((new Date() - createdAtDate) / (1000 * 60 * 60 * 24));
                         const isOverdue = ageInDays >= 2;
                         
                         return (
@@ -1325,11 +1359,19 @@ const AdminDashboard = () => {
                             <td className="p-4">
                               <div className="flex flex-col">
                                 <span className="text-white font-bold">{order.customerName || 'WhatsApp Customer'}</span>
-                                <span className="text-[10px] text-gray-500">{new Date(order.createdAt?.toDate()).toLocaleString()}</span>
+                                <span className="text-[10px] text-gray-500">{createdAtDate.toLocaleString()}</span>
                               </div>
                             </td>
                             <td className="p-4">
-                              <span className={`font-black italic ${isOverdue ? 'text-red-500' : 'text-white'}`}>KES {order.total.toLocaleString()}</span>
+                              <span className="font-bold text-gray-300">KES {grandTotal.toLocaleString()}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-bold text-green-400">KES {paidAmount.toLocaleString()}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className={`font-black italic ${isOverdue ? 'text-red-500' : 'text-accentOrange'}`}>
+                                KES {balance.toLocaleString()}
+                              </span>
                             </td>
                             <td className="p-4">
                               <div className="flex items-center gap-2">
@@ -1340,12 +1382,30 @@ const AdminDashboard = () => {
                               </div>
                             </td>
                             <td className="p-4 text-center">
-                              <button 
-                                onClick={() => handleUpdateOrderPayment(order.id, 'Paid', 'Credit')}
-                                className="px-4 py-2 bg-green-500/10 text-green-500 border border-green-500/30 rounded-lg text-xs font-black uppercase hover:bg-green-500 hover:text-white transition"
-                              >
-                                Mark as Paid
-                              </button>
+                              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Amount"
+                                    value={partialPaymentInputs[order.id] || ''}
+                                    onChange={(e) => setPartialPaymentInputs({ ...partialPaymentInputs, [order.id]: e.target.value })}
+                                    className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-accentOrange"
+                                  />
+                                  <button
+                                    onClick={() => handleRecordPartialPayment(order.id)}
+                                    className="px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-500 hover:text-white transition whitespace-nowrap"
+                                  >
+                                    Pay Partial
+                                  </button>
+                                </div>
+                                <button 
+                                  onClick={() => handleUpdateOrderPayment(order.id, 'Paid', 'Credit')}
+                                  className="px-3 py-1.5 bg-green-500/10 text-green-500 border border-green-500/30 rounded-lg text-xs font-black uppercase hover:bg-green-500 hover:text-white transition whitespace-nowrap"
+                                >
+                                  Mark Fully Paid
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );

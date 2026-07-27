@@ -106,11 +106,19 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
       const subtotalOriginal = cart.reduce((sum, item) => sum + ((item.originalCatalogPrice || item.price) * item.quantity), 0);
       const totalDiscount = cart.reduce((sum, item) => sum + (((item.originalCatalogPrice || item.price) - item.price) * item.quantity), 0);
 
+      const isPaid = paymentStatus === 'Paid' && paymentType !== 'Credit';
+      const initialStatus = isPaid ? 'completed' : 'pending';
+      const initialAmountPaid = isPaid ? grandTotal : 0;
+      const initialBalanceRemaining = Math.max(0, grandTotal - initialAmountPaid);
+
       const orderData = {
         customerName: customerName.trim() || 'Walk-in Customer',
         customerAction: 'manual_walk_in',
         paymentType,
         paymentStatus,
+        status: initialStatus,
+        amountPaid: initialAmountPaid,
+        balanceRemaining: initialBalanceRemaining,
         total: grandTotal,
         subtotal_original: subtotalOriginal,
         total_discount: totalDiscount,

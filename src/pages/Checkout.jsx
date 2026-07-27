@@ -76,6 +76,9 @@ const Checkout = () => {
         customerAction: 'online_order',
         paymentType: 'Cash',
         paymentStatus: 'Unpaid',
+        status: 'pending',
+        amountPaid: 0,
+        balanceRemaining: grandTotal,
       };
 
       // Use processManualSale so stock is atomically deducted

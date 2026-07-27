@@ -2,7 +2,7 @@ import './Footer.css';
 
 function Footer() {
   const currentYear = new Date().getFullYear();
-  const brandName = 'Lightsource Spare Parts and Accessories, Inc.';
+  const brandName = 'Gear Link Spares and Accessories, Inc.';
   const supportEmail = 'stanleymaina2003@gmail.com';
   const phoneNumber = '+254 716 778794';
   const chatStatus = '24/7 Support'; // adjust as needed

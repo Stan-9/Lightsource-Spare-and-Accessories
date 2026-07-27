@@ -16,10 +16,10 @@ export const getSettings = async () => {
     if (snapshot.exists()) {
       return snapshot.data();
     }
-    return { shopName: "LightSource Motors", whatsappNumber: "254700000000" };
+    return { shopName: "Gear Link Spares and Accessories", whatsappNumber: "254700000000" };
   } catch (error) {
     console.error("Error fetching settings: ", error);
-    return { shopName: "LightSource Motors", whatsappNumber: "" };
+    return { shopName: "Gear Link Spares and Accessories", whatsappNumber: "" };
   }
 };
 
@@ -38,7 +38,7 @@ export const subscribeSettings = (callback) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
     } else {
-      callback({ shopName: "LightSource Motors", whatsappNumber: "" });
+      callback({ shopName: "Gear Link Spares and Accessories", whatsappNumber: "" });
     }
   }, (error) => {
     console.error("Error subscribing to settings: ", error);

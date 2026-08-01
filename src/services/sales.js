@@ -105,13 +105,16 @@ export const executeTransaction = async (orderData) => {
       const flaggedForReview = itemsWithCost.some(item => item.was_discounted);
 
       const paymentType = orderData.paymentType || 'Cash';
-      const paymentStatus = orderData.paymentStatus || 'Paid';
-      const initialStatus = orderData.status || (paymentStatus === 'Unpaid' || paymentType === 'Credit' ? 'pending' : 'completed');
+      const isCredit = Boolean(orderData.isCredit !== undefined ? orderData.isCredit : (paymentType === 'Credit'));
+      const rawPaymentStatus = orderData.paymentStatus || (paymentType === 'Credit' ? 'Unpaid' : 'Paid');
+      const normalizedPaymentStatus = (rawPaymentStatus === 'Paid' || rawPaymentStatus === 'paid') ? 'paid' : 'unpaid';
       
       const amountPaid = orderData.amountPaid !== undefined 
         ? Number(orderData.amountPaid) 
-        : (paymentStatus === 'Paid' ? netTotal : 0);
+        : (normalizedPaymentStatus === 'paid' ? netTotal : 0);
       const balanceRemaining = Math.max(0, netTotal - amountPaid);
+      const finalPaymentStatus = balanceRemaining === 0 ? 'paid' : 'unpaid';
+      const fulfillmentStatus = orderData.fulfillmentStatus || 'fulfilled';
 
       const newOrderRef = doc(ordersCollection);
       transaction.set(newOrderRef, {
@@ -122,9 +125,11 @@ export const executeTransaction = async (orderData) => {
         net_total: netTotal,
         flaggedForReview: flaggedForReview,
         createdAt: serverTimestamp(),
-        status: initialStatus,
+        fulfillmentStatus: fulfillmentStatus,
+        paymentStatus: finalPaymentStatus,
+        isCredit: isCredit,
+        status: finalPaymentStatus === 'paid' ? 'completed' : 'pending',
         paymentType: paymentType,
-        paymentStatus: paymentStatus,
         amountPaid: amountPaid,
         balanceRemaining: balanceRemaining,
       });
@@ -136,10 +141,75 @@ export const executeTransaction = async (orderData) => {
   }
 };
 
+export const normalizeOrder = (order) => {
+  if (!order) return order;
+  if (order.fulfillmentStatus) {
+    return {
+      ...order,
+      paymentStatus: (order.paymentStatus === 'Paid' || order.paymentStatus === 'paid') ? 'paid' : 'unpaid',
+      isCredit: Boolean(order.isCredit !== undefined ? order.isCredit : (order.paymentType === 'Credit')),
+    };
+  }
+
+  // Legacy document migration mapping
+  const oldStatus = order.status || 'pending';
+  const paymentType = order.paymentType || 'Cash';
+  const customerAction = order.customerAction;
+  let fulfillmentStatus = 'fulfilled';
+  let paymentStatus = (order.paymentStatus === 'Paid' || order.paymentStatus === 'paid') ? 'paid' : 'unpaid';
+  let isCredit = paymentType === 'Credit';
+
+  if (oldStatus === 'completed') {
+    fulfillmentStatus = 'fulfilled';
+    paymentStatus = 'paid';
+  } else if (oldStatus === 'cancelled') {
+    fulfillmentStatus = 'not_fulfilled';
+    paymentStatus = 'unpaid';
+  } else {
+    // oldStatus === 'pending'
+    if (paymentType === 'Credit') {
+      fulfillmentStatus = 'fulfilled';
+      paymentStatus = 'unpaid';
+      isCredit = true;
+    } else if (customerAction === 'online_order') {
+      fulfillmentStatus = 'fulfilled';
+      paymentStatus = 'unpaid';
+      isCredit = false;
+    } else if (customerAction === 'whatsapp_redirect') {
+      fulfillmentStatus = 'not_fulfilled';
+      paymentStatus = 'unpaid';
+      isCredit = false;
+    } else {
+      // Fallback for pending missing both customerAction and paymentType
+      fulfillmentStatus = 'fulfilled';
+      paymentStatus = 'unpaid';
+      isCredit = false;
+    }
+  }
+
+  return {
+    ...order,
+    fulfillmentStatus,
+    paymentStatus,
+    isCredit,
+  };
+};
+
+export const getOrderStatus = (order) => {
+  const norm = normalizeOrder(order);
+  if (norm.fulfillmentStatus === 'not_fulfilled' || norm.fulfillmentStatus === 'returned') {
+    return 'cancelled';
+  }
+  if (norm.fulfillmentStatus === 'fulfilled') {
+    return norm.paymentStatus === 'paid' ? 'completed' : 'pending';
+  }
+  return 'pending';
+};
+
 export const subscribeOrders = (callback) => {
   const q = query(ordersCollection, orderBy('createdAt', 'desc'));
   return onSnapshot(q, (snapshot) => {
-    const orders = snapshot.docs.map(doc => ({
+    const orders = snapshot.docs.map(doc => normalizeOrder({
       id: doc.id,
       ...doc.data()
     }));
@@ -150,7 +220,7 @@ export const subscribeOrders = (callback) => {
   });
 };
 
-export const updateOrderStatus = async (orderId, newStatus) => {
+export const updateOrderFulfillmentStatus = async (orderId, newFulfillmentStatus) => {
   try {
     await runTransaction(db, async (transaction) => {
       const orderRef = doc(db, 'orders', orderId);
@@ -159,12 +229,16 @@ export const updateOrderStatus = async (orderId, newStatus) => {
         throw new Error("Order not found");
       }
 
-      const orderData = orderDoc.data();
-      const currentStatus = orderData.status;
+      const rawOrderData = orderDoc.data();
+      const orderData = normalizeOrder(rawOrderData);
+      const currentFulfillment = orderData.fulfillmentStatus;
 
-      // Handle stock restoration/re-deduction on cancellation changes
-      if (currentStatus !== 'cancelled' && newStatus === 'cancelled') {
-        // Restore stock
+      // Handle stock restoration/re-deduction on fulfillment transitions
+      const wasStockDeducted = currentFulfillment === 'fulfilled';
+      const willStockBeDeducted = newFulfillmentStatus === 'fulfilled';
+
+      if (wasStockDeducted && !willStockBeDeducted) {
+        // Restore stock (transitioning to returned or not_fulfilled from fulfilled)
         for (const item of (orderData.items || [])) {
           if (item.id) {
             const productRef = doc(db, 'products', item.id);
@@ -175,8 +249,8 @@ export const updateOrderStatus = async (orderId, newStatus) => {
             }
           }
         }
-      } else if (currentStatus === 'cancelled' && newStatus !== 'cancelled') {
-        // Re-deduct stock
+      } else if (!wasStockDeducted && willStockBeDeducted) {
+        // Re-deduct stock (transitioning to fulfilled from returned or not_fulfilled)
         for (const item of (orderData.items || [])) {
           if (item.id) {
             const productRef = doc(db, 'products', item.id);
@@ -189,26 +263,44 @@ export const updateOrderStatus = async (orderId, newStatus) => {
         }
       }
 
-      transaction.update(orderRef, { status: newStatus });
+      const updates = { 
+        fulfillmentStatus: newFulfillmentStatus,
+        status: newFulfillmentStatus === 'fulfilled' 
+          ? (orderData.paymentStatus === 'paid' ? 'completed' : 'pending')
+          : 'cancelled'
+      };
+
+      // Special transition rule: Return after fulfillment on unpaid credit sale voids debt
+      if (newFulfillmentStatus === 'returned' && orderData.isCredit && orderData.balanceRemaining > 0) {
+        updates.balanceRemaining = 0;
+        updates.paymentStatus = 'unpaid'; // Debt is voided; payment status remains unpaid / zeroed balance
+      }
+
+      transaction.update(orderRef, updates);
     });
     return result(true);
   } catch (error) {
-    console.error("Error updating order status: ", error);
+    console.error("Error updating order fulfillment status: ", error);
     return result(false, null, error.message);
   }
 };
 
+// Compatibility export
+export const updateOrderStatus = updateOrderFulfillmentStatus;
+
 export const updateOrderPayment = async (orderId, paymentStatus, paymentType) => {
   try {
     const orderRef = doc(db, 'orders', orderId);
+    const normStatus = (paymentStatus === 'Paid' || paymentStatus === 'paid') ? 'paid' : 'unpaid';
     const updateData = { 
-      paymentStatus,
+      paymentStatus: normStatus,
       paymentType: paymentType || 'Cash' 
     };
-    // If setting to Paid, mark status as completed and balanceRemaining as 0
-    if (paymentStatus === 'Paid') {
+    if (normStatus === 'paid') {
       updateData.status = 'completed';
       updateData.balanceRemaining = 0;
+    } else {
+      updateData.status = 'pending';
     }
     await updateDoc(orderRef, updateData);
     return result(true);
@@ -227,7 +319,7 @@ export const recordCreditorPayment = async (orderId, paymentAmount) => {
         throw new Error("Order not found");
       }
 
-      const orderData = orderDoc.data();
+      const orderData = normalizeOrder(orderDoc.data());
       const grandTotal = Number(orderData.net_total || orderData.total || 0);
       const currentPaid = Number(orderData.amountPaid || 0);
       const newAmountPaid = currentPaid + Number(paymentAmount);
@@ -240,7 +332,7 @@ export const recordCreditorPayment = async (orderId, paymentAmount) => {
       };
 
       if (isFullyPaid) {
-        updates.paymentStatus = 'Paid';
+        updates.paymentStatus = 'paid';
         updates.status = 'completed';
       }
 

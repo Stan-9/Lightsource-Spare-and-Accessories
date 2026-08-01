@@ -9,9 +9,12 @@ import {
   subscribeOrders,
   subscribeCategories,
   updateCategoriesList,
+  updateOrderFulfillmentStatus,
   updateOrderStatus,
   updateOrderPayment,
   recordCreditorPayment,
+  getOrderStatus,
+  normalizeOrder
 } from '../firebase/products';
 import ConfirmModal from '../components/shared/ConfirmModal';
 import { auth } from '../firebase/config';
@@ -36,7 +39,8 @@ import {
   Clock,
   ChevronRight,
   MoreVertical,
-  Printer
+  Printer,
+  Database
 } from 'lucide-react';
 import ProductModal from '../components/admin/ProductModal';
 import ManualSaleModal from '../components/admin/ManualSaleModal';
@@ -110,10 +114,12 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const activeCreditorOrders = useMemo(() => {
-    return orders.filter(o => {
-      if (o.paymentType !== 'Credit') return false;
+    return orders.filter(rawOrder => {
+      const o = normalizeOrder(rawOrder);
+      if (!o.isCredit) return false;
+      if (o.fulfillmentStatus !== 'fulfilled') return false;
       if (o.balanceRemaining !== undefined) return o.balanceRemaining > 0;
-      return o.paymentStatus === 'Unpaid';
+      return o.paymentStatus === 'unpaid';
     });
   }, [orders]);
 
@@ -209,12 +215,12 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId, status) => {
+  const handleUpdateOrderFulfillmentStatus = async (orderId, fulfillmentStatus) => {
     try {
-      await updateOrderStatus(orderId, status);
-      toast.success(`Order ${status}`);
-    } catch (error) {
-      toast.error('Failed to update status');
+      await updateOrderFulfillmentStatus(orderId, fulfillmentStatus);
+      toast.success(`Fulfillment updated to ${fulfillmentStatus}`);
+    } catch {
+      toast.error('Failed to update fulfillment status');
     }
   };
 
@@ -351,8 +357,8 @@ const AdminDashboard = () => {
     const inventoryValueRetail = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
     const inventoryValueCost = products.reduce((acc, p) => acc + ((p.buyingPrice || 0) * p.stock), 0);
     const potentialProfit = inventoryValueRetail - inventoryValueCost;
-    const rangedOrders = orders;
-    const completedOrders = rangedOrders.filter(o => o.status === 'completed');
+    const rangedOrders = orders.map(normalizeOrder);
+    const completedOrders = rangedOrders.filter(o => o.fulfillmentStatus === 'fulfilled' && o.paymentStatus === 'paid');
     const actualSales = completedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
     const actualProfit = completedOrders.reduce((acc, o) => {
       const orderProfit = (o.items || []).reduce((iAcc, item) => {
@@ -389,13 +395,15 @@ const AdminDashboard = () => {
     const rangeDays = analysisRange === 'weekly' ? 7 : 30;
     const cutoffDate = new Date(now.getTime() - (rangeDays * 24 * 60 * 60 * 1000));
 
-    const rangedOrders = orders.filter(o => {
+    const normalizedOrders = orders.map(normalizeOrder);
+    const rangedOrders = normalizedOrders.filter(o => {
       if (analysisRange === 'all') return true;
       const date = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
       return date >= cutoffDate;
     });
 
-    const completed = rangedOrders.filter(o => o.status === 'completed');
+    const completed = rangedOrders.filter(o => o.fulfillmentStatus === 'fulfilled' && o.paymentStatus === 'paid');
+    const returnedCreditSales = rangedOrders.filter(o => o.isCredit && o.fulfillmentStatus === 'returned');
 
     let totalGrossRevenue = 0;
     let totalDiscountsGiven = 0;
@@ -467,7 +475,9 @@ const AdminDashboard = () => {
       fullPriceSalesCount,
       topDiscountedProducts,
       discountedSalesList,
-      completedCount: completed.length
+      completedCount: completed.length,
+      returnedCreditCount: returnedCreditSales.length,
+      returnedCreditList: returnedCreditSales
     };
   }, [orders, analysisRange]);
 
@@ -954,18 +964,23 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-800/50">
                     {(() => {
-                      const filtered = orders.filter(o => {
+                      const filtered = orders.filter(rawOrder => {
+                        const o = normalizeOrder(rawOrder);
+                        const derivedStatus = getOrderStatus(o);
                         const matchSearch = !orderSearch ||
                           (o.customerName || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
                           (o.items || []).some(i => i.name?.toLowerCase().includes(orderSearch.toLowerCase()));
-                        const matchStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+                        const matchStatus = orderStatusFilter === 'all' || derivedStatus === orderStatusFilter;
                         const matchPayment = orderPaymentFilter === 'all' || o.paymentType === orderPaymentFilter;
                         return matchSearch && matchStatus && matchPayment;
                       });
                       if (filtered.length === 0) return (
                         <tr><td colSpan="6" className="p-12 text-center text-gray-500 italic">No orders match your filters.</td></tr>
                       );
-                      return filtered.map((order) => (
+                      return filtered.map((rawOrder) => {
+                        const order = normalizeOrder(rawOrder);
+                        const derivedStatus = getOrderStatus(order);
+                        return (
                         <tr key={order.id} className="hover:bg-gray-800/30 transition group">
                           <td className="p-4">
                             <div className="flex flex-col">
@@ -1005,17 +1020,31 @@ const AdminDashboard = () => {
                           <td className="p-4">
                             <div className="flex flex-col gap-2">
                               <select
-                                value={order.status}
-                                onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                value={order.fulfillmentStatus || 'fulfilled'}
+                                onChange={(e) => handleUpdateOrderFulfillmentStatus(order.id, e.target.value)}
                                 className={`text-[10px] font-black uppercase px-2 py-1 rounded border transition ${
-                                  order.status === 'completed' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
-                                  order.status === 'cancelled' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
+                                  derivedStatus === 'completed' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
+                                  derivedStatus === 'cancelled' ? 'bg-red-500/10 border-red-500/30 text-red-500' :
                                   'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
                                 }`}
                               >
-                                <option value="pending">Pending</option>
-                                <option value="completed">Completed</option>
-                                <option value="cancelled">Cancelled</option>
+                                {order.fulfillmentStatus === 'fulfilled' ? (
+                                  <>
+                                    <option value="fulfilled">Fulfilled (Active)</option>
+                                    <option value="not_fulfilled">Cancel (Not Fulfilled)</option>
+                                    <option value="returned">Return (Stock Restored)</option>
+                                  </>
+                                ) : order.fulfillmentStatus === 'not_fulfilled' ? (
+                                  <>
+                                    <option value="not_fulfilled">Cancelled (Not Fulfilled)</option>
+                                    <option value="fulfilled">Fulfill Order (Deduct Stock)</option>
+                                  </>
+                                ) : (
+                                  <>
+                                    <option value="returned">Cancelled (Returned)</option>
+                                    <option value="fulfilled">Fulfill Order (Deduct Stock)</option>
+                                  </>
+                                )}
                               </select>
                               <select
                                 value={order.paymentType || 'Cash'}
@@ -1489,6 +1518,61 @@ const AdminDashboard = () => {
                     Add
                   </button>
                 </div>
+              </div>
+
+              <div className="pt-6 mt-6 border-t border-gray-800">
+                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-accentOrange" />
+                  Database Schema Migration
+                </h4>
+                <p className="text-xs text-gray-400 mb-4">
+                  Run a one-time migration to upgrade legacy orders to the new fulfillment and payment schema. 
+                  An automatic JSON backup will download before migration begins. Safe to run multiple times.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      // 1. Export JSON backup automatically
+                      const jsonContent = JSON.stringify(orders, null, 2);
+                      const blob = new Blob([jsonContent], { type: 'application/json' });
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.setAttribute('href', url);
+                      a.setAttribute('download', `orders_backup_${Date.now()}.json`);
+                      a.click();
+                      toast.success("Pre-migration backup downloaded!");
+
+                      // 2. Perform idempotent migration
+                      let migratedCount = 0;
+                      const { doc, updateDoc } = await import('firebase/firestore');
+                      const { db } = await import('../firebase/config');
+
+                      for (const rawOrder of orders) {
+                        if (!rawOrder.fulfillmentStatus && rawOrder.id) {
+                          const norm = normalizeOrder(rawOrder);
+                          const orderRef = doc(db, 'orders', rawOrder.id);
+                          await updateDoc(orderRef, {
+                            fulfillmentStatus: norm.fulfillmentStatus,
+                            paymentStatus: norm.paymentStatus,
+                            isCredit: norm.isCredit,
+                            status: norm.fulfillmentStatus === 'fulfilled' 
+                              ? (norm.paymentStatus === 'paid' ? 'completed' : 'pending')
+                              : 'cancelled'
+                          });
+                          migratedCount++;
+                        }
+                      }
+                      toast.success(`Migration completed! ${migratedCount} legacy orders updated.`);
+                    } catch (error) {
+                      console.error(error);
+                      toast.error("Migration failed: " + error.message);
+                    }
+                  }}
+                  className="px-6 py-2.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold hover:bg-blue-500 hover:text-white transition"
+                >
+                  Backup & Migrate Legacy Orders
+                </button>
               </div>
 
               <div className="pt-6 mt-6 border-t border-gray-800">

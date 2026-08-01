@@ -114,8 +114,10 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
       const orderData = {
         customerName: customerName.trim() || 'Walk-in Customer',
         customerAction: 'manual_walk_in',
+        fulfillmentStatus: 'fulfilled',
+        isCredit: paymentType === 'Credit',
         paymentType,
-        paymentStatus,
+        paymentStatus: isPaid ? 'paid' : 'unpaid',
         status: initialStatus,
         amountPaid: initialAmountPaid,
         balanceRemaining: initialBalanceRemaining,

@@ -1069,8 +1069,9 @@ const AdminDashboard = () => {
                             </button>
                           </td>
                         </tr>
-                      ));
-                    })()}
+                      );
+                    });
+                  })()}
                   </tbody>
                 </table>
               </div>

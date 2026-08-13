@@ -27,8 +27,9 @@ const AdminLogin = () => {
       toast.success('Login successful');
       navigate('/admin/dashboard');
     } catch (error) {
-      console.error(error);
-      toast.error('Invalid credentials. Please try again.');
+      console.error("Firebase Login Error:", error);
+      const msg = error.code ? `Login failed (${error.code})` : (error.message || 'Invalid credentials');
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

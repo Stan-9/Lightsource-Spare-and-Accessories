@@ -4,7 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyApiKeyForLocalTesting123456",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBYzC2sijes-eWHXgyU2f0MPFMZ4o6_Q5s",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "lightsource-894e9.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "lightsource-894e9",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "lightsource-894e9.firebasestorage.app",

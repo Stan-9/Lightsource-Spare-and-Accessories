@@ -11,8 +11,8 @@
 export const uploadProductImage = async (file) => {
   if (!file) return null;
   
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dzsxqxzj6';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'Lightsource';
 
   if (!cloudName || !uploadPreset) {
     console.error("Cloudinary config missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your .env");

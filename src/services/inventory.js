@@ -103,7 +103,11 @@ export const updateProductStock = async (id, newStock) => {
 export const deleteProduct = async (id, imageUrl) => {
   try {
     if (imageUrl) {
-      await deleteProductImage(imageUrl);
+      try {
+        await deleteProductImage(imageUrl);
+      } catch (imgErr) {
+        console.warn("Could not remove image, proceeding with product deletion:", imgErr);
+      }
     }
     const productRef = doc(db, 'products', id);
     await deleteDoc(productRef);

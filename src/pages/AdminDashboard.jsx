@@ -176,8 +176,12 @@ const AdminDashboard = () => {
       async () => {
         closeConfirm();
         try {
-          await deleteProduct(id, imageUrl);
-          toast.success(`${name} deleted`);
+          const res = await deleteProduct(id, imageUrl);
+          if (res && res.success === false) {
+            toast.error(res.error || 'Failed to delete product');
+          } else {
+            toast.success(`${name} deleted`);
+          }
         } catch {
           toast.error('Failed to delete product');
         }

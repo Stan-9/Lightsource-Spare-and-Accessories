@@ -70,11 +70,19 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
       
       if (product) {
         // Edit mode
-        await updateProduct(product.id, product, finalFormData, imageFile);
+        const res = await updateProduct(product.id, product, finalFormData, imageFile);
+        if (res && res.success === false) {
+          toast.error(res.error || "Failed to update product");
+          return;
+        }
         toast.success("Product updated successfully");
       } else {
         // Add mode
-        await addProduct(finalFormData, imageFile);
+        const res = await addProduct(finalFormData, imageFile);
+        if (res && res.success === false) {
+          toast.error(res.error || "Failed to add product");
+          return;
+        }
         toast.success("Product added successfully");
       }
       onClose();

@@ -24,7 +24,8 @@ const ReceiptModal = ({ isOpen, onClose, order, settings }) => {
           {/* Receipt Header */}
           <div className="text-center mb-6">
             <h1 className="text-xl font-black uppercase tracking-widest mb-1">{settings?.shopName || 'LIGHTSOURCE MOTORS'}</h1>
-            <p className="text-[10px] uppercase font-bold text-gray-600 mb-2">Motorbike Spare Parts & Accessories</p>
+            <p className="text-[10px] uppercase font-bold text-gray-600 mb-1">Motorbike Spare Parts & Accessories</p>
+            <p className="text-[10px] font-bold text-gray-800">TEL: {settings?.contactNumber || '0728490713 / 0716778794'}</p>
             <div className="border-t border-b border-black/10 py-2 my-2 space-y-1">
               <p className="flex justify-between"><span>DATE:</span> <span>{new Date(order.createdAt?.toDate ? order.createdAt.toDate() : order.createdAt).toLocaleString()}</span></p>
               <p className="flex justify-between"><span>ORDER ID:</span> <span className="font-bold">#{order.id.slice(-6).toUpperCase()}</span></p>
@@ -102,8 +103,15 @@ const ReceiptModal = ({ isOpen, onClose, order, settings }) => {
             </div>
           </div>
 
+          {/* Payment Info */}
+          <div className="my-4 p-2.5 border border-dashed border-black/30 rounded text-center space-y-0.5 bg-gray-50/50">
+            <p className="text-[10px] font-black uppercase tracking-wider">M-PESA PAYMENT DETAILS</p>
+            <p className="text-[11px] font-bold">Paybill :Business Number {settings?.paybillNumber || '247247'}</p>
+            <p className="text-[11px] font-bold">Account number {settings?.paybillAccount || '0728490713'}</p>
+          </div>
+
           {/* Footer */}
-          <div className="text-center mt-12 pt-6 border-t border-dashed border-black/20">
+          <div className="text-center mt-8 pt-4 border-t border-dashed border-black/20">
             <p className="font-bold mb-1 italic">THANK YOU FOR YOUR BUSINESS!</p>
             <p className="text-[10px] uppercase tracking-widest opacity-60">Parts sold are not returnable once fitted.</p>
             <p className="text-[9px] mt-4 opacity-40">System Powered by LightSource</p>

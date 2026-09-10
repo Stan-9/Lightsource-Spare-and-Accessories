@@ -237,29 +237,34 @@ export const updateOrderFulfillmentStatus = async (orderId, newFulfillmentStatus
       const wasStockDeducted = currentFulfillment === 'fulfilled';
       const willStockBeDeducted = newFulfillmentStatus === 'fulfilled';
 
-      if (wasStockDeducted && !willStockBeDeducted) {
-        // Restore stock (transitioning to returned or not_fulfilled from fulfilled)
+      // 1. Perform ALL transaction reads first
+      const productReads = [];
+      if ((wasStockDeducted && !willStockBeDeducted) || (!wasStockDeducted && willStockBeDeducted)) {
         for (const item of (orderData.items || [])) {
           if (item.id) {
             const productRef = doc(db, 'products', item.id);
             const productDoc = await transaction.get(productRef);
             if (productDoc.exists()) {
-              const currentStock = productDoc.data().stock || 0;
-              transaction.update(productRef, { stock: currentStock + item.quantity });
+              productReads.push({
+                ref: productRef,
+                currentStock: productDoc.data().stock || 0,
+                quantity: Number(item.quantity || 0)
+              });
             }
           }
         }
+      }
+
+      // 2. Perform ALL transaction updates after all reads complete
+      if (wasStockDeducted && !willStockBeDeducted) {
+        // Restore stock (transitioning to returned or not_fulfilled from fulfilled)
+        for (const { ref, currentStock, quantity } of productReads) {
+          transaction.update(ref, { stock: currentStock + quantity });
+        }
       } else if (!wasStockDeducted && willStockBeDeducted) {
         // Re-deduct stock (transitioning to fulfilled from returned or not_fulfilled)
-        for (const item of (orderData.items || [])) {
-          if (item.id) {
-            const productRef = doc(db, 'products', item.id);
-            const productDoc = await transaction.get(productRef);
-            if (productDoc.exists()) {
-              const currentStock = productDoc.data().stock || 0;
-              transaction.update(productRef, { stock: Math.max(0, currentStock - item.quantity) });
-            }
-          }
+        for (const { ref, currentStock, quantity } of productReads) {
+          transaction.update(ref, { stock: Math.max(0, currentStock - quantity) });
         }
       }
 

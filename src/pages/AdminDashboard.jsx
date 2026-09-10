@@ -73,7 +73,13 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [settingsData, setSettingsData] = useState({ shopName: '', whatsappNumber: '' });
+  const [settingsData, setSettingsData] = useState({ 
+    shopName: '', 
+    whatsappNumber: '', 
+    contactNumber: '', 
+    paybillNumber: '', 
+    paybillAccount: '' 
+  });
   
   // Products Tab State
   const [searchQuery, setSearchQuery] = useState('');
@@ -221,8 +227,12 @@ const AdminDashboard = () => {
 
   const handleUpdateOrderFulfillmentStatus = async (orderId, fulfillmentStatus) => {
     try {
-      await updateOrderFulfillmentStatus(orderId, fulfillmentStatus);
-      toast.success(`Fulfillment updated to ${fulfillmentStatus}`);
+      const res = await updateOrderFulfillmentStatus(orderId, fulfillmentStatus);
+      if (res && res.success) {
+        toast.success(`Fulfillment updated to ${fulfillmentStatus}`);
+      } else {
+        toast.error(`Failed to update fulfillment status: ${res?.error || 'Unknown error'}`);
+      }
     } catch {
       toast.error('Failed to update fulfillment status');
     }
@@ -230,8 +240,12 @@ const AdminDashboard = () => {
 
   const handleUpdateOrderPayment = async (orderId, paymentStatus, paymentType) => {
     try {
-      await updateOrderPayment(orderId, paymentStatus, paymentType);
-      toast.success('Payment status updated');
+      const res = await updateOrderPayment(orderId, paymentStatus, paymentType);
+      if (res && res.success) {
+        toast.success('Payment status updated');
+      } else {
+        toast.error(`Failed to update payment: ${res?.error || 'Unknown error'}`);
+      }
     } catch (error) {
       toast.error('Failed to update payment');
     }
@@ -1477,12 +1491,46 @@ const AdminDashboard = () => {
                 </p>
                 <input
                   type="text"
-                  value={settingsData.whatsappNumber}
+                  value={settingsData.whatsappNumber || ''}
                   onChange={(e) => setSettingsData({...settingsData, whatsappNumber: e.target.value})}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accentOrange focus:ring-1 focus:ring-accentOrange/50 transition-all font-mono"
                   placeholder="254700000000"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Receipt Contact Phone Numbers</label>
+                <input
+                  type="text"
+                  value={settingsData.contactNumber || ''}
+                  onChange={(e) => setSettingsData({...settingsData, contactNumber: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accentOrange focus:ring-1 focus:ring-accentOrange/50 transition-all font-medium"
+                  placeholder="0728490713 / 0716778794"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">M-Pesa Paybill Business Number</label>
+                  <input
+                    type="text"
+                    value={settingsData.paybillNumber || ''}
+                    onChange={(e) => setSettingsData({...settingsData, paybillNumber: e.target.value})}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accentOrange focus:ring-1 focus:ring-accentOrange/50 transition-all font-mono"
+                    placeholder="247247"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">M-Pesa Account Number</label>
+                  <input
+                    type="text"
+                    value={settingsData.paybillAccount || ''}
+                    onChange={(e) => setSettingsData({...settingsData, paybillAccount: e.target.value})}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accentOrange focus:ring-1 focus:ring-accentOrange/50 transition-all font-mono"
+                    placeholder="0728490713"
+                  />
+                </div>
               </div>
 
               <div className="pt-6 mt-6 border-t border-gray-800">

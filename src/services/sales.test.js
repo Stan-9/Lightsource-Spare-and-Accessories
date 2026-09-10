@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { normalizeOrder, getOrderStatus } from './sales';
 
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    runTransaction: vi.fn(),
+    doc: vi.fn((db, collectionName, id) => ({ path: `${collectionName}/${id}` })),
+  };
+});
+
 describe('Order Workflow & Schema Tests', () => {
   describe('Legacy Document Migration Mapping', () => {
     it('maps legacy completed orders to fulfilled + paid', () => {
@@ -78,6 +87,48 @@ describe('Order Workflow & Schema Tests', () => {
       expect(norm.isCredit).toBe(true);
       expect(norm.fulfillmentStatus).toBe('returned');
       expect(norm.balanceRemaining).toBe(0);
+    });
+  });
+
+  describe('updateOrderFulfillmentStatus Transaction Logic', () => {
+    it('executes all transaction reads before any updates', async () => {
+      const { updateOrderFulfillmentStatus } = await import('./sales');
+      const { runTransaction } = await import('firebase/firestore');
+
+      const mockOrderData = {
+        fulfillmentStatus: 'fulfilled',
+        paymentStatus: 'paid',
+        items: [
+          { id: 'p1', quantity: 2 },
+          { id: 'p2', quantity: 1 }
+        ]
+      };
+
+      const callsOrder = [];
+      const mockTransaction = {
+        get: vi.fn(async (ref) => {
+          callsOrder.push(`get:${ref.path}`);
+          if (ref.path === 'orders/ord123') return { exists: () => true, data: () => mockOrderData };
+          return { exists: () => true, data: () => ({ stock: 10 }) };
+        }),
+        update: vi.fn((ref, data) => {
+          callsOrder.push(`update:${ref.path}`);
+        })
+      };
+
+      vi.mocked(runTransaction).mockImplementationOnce(async (dbInstance, cb) => {
+        return await cb(mockTransaction);
+      });
+
+      const result = await updateOrderFulfillmentStatus('ord123', 'returned');
+      expect(result.success).toBe(true);
+
+      const firstUpdateIndex = callsOrder.findIndex(c => c.startsWith('update:'));
+      const lastGetIndex = callsOrder.reduce((max, c, idx) => c.startsWith('get:') ? idx : max, -1);
+
+      expect(firstUpdateIndex).toBeGreaterThan(lastGetIndex);
+      expect(mockTransaction.update).toHaveBeenCalledWith(expect.objectContaining({ path: 'products/p1' }), { stock: 12 });
+      expect(mockTransaction.update).toHaveBeenCalledWith(expect.objectContaining({ path: 'products/p2' }), { stock: 11 });
     });
   });
 });

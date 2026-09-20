@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingCart, User } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { useSettings } from '../../context/SettingsContext';
 import toast from 'react-hot-toast';
 
-import { logOrder } from '../../firebase/products';
+import { logOrder } from '../../services/sales';
 
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-const CartDrawer = ({ whatsappNumber }) => {
+const CartDrawer = ({ whatsappNumber: propWhatsappNumber }) => {
   const { 
     cartItems, 
     isDrawerOpen, 
@@ -16,6 +16,9 @@ const CartDrawer = ({ whatsappNumber }) => {
     updateQuantity, 
     grandTotal 
   } = useCart();
+  const { settings } = useSettings();
+  const whatsappNumber = propWhatsappNumber || settings?.whatsappNumber;
+
   const navigate = useNavigate();
 
   const handleCheckoutRedirect = () => {
@@ -65,7 +68,6 @@ const CartDrawer = ({ whatsappNumber }) => {
     toast.success('Opening WhatsApp...');
     window.open(url, '_blank');
   };
-
 
   return (
     <>
@@ -228,6 +230,5 @@ const CartDrawer = ({ whatsappNumber }) => {
     </>
   );
 };
-
 
 export default CartDrawer;

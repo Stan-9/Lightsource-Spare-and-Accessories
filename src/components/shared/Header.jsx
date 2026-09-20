@@ -1,5 +1,6 @@
-import { ShoppingCart, User, LogOut, Briefcase } from 'lucide-react';
+import { ShoppingCart, User, LogOut } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { useSettings } from '../../context/SettingsContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
@@ -7,8 +8,11 @@ import toast from 'react-hot-toast';
 
 import logo from '../../assets/logo.png';
 
-const Header = ({ shopName }) => {
+const Header = ({ shopName: propShopName }) => {
   const { totalItems, grandTotal, toggleDrawer } = useCart();
+  const { settings } = useSettings();
+  const shopName = propShopName || settings?.shopName;
+
   const navigate = useNavigate();
   const user = auth.currentUser;
 
@@ -17,7 +21,7 @@ const Header = ({ shopName }) => {
       await signOut(auth);
       toast.success('Signed out');
       navigate('/');
-    } catch (error) {
+    } catch {
       toast.error('Error signing out');
     }
   };
@@ -100,4 +104,3 @@ const Header = ({ shopName }) => {
 };
 
 export default Header;
-

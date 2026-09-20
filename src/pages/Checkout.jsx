@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { processManualSale } from '../firebase/products';
+import { processManualSale } from '../services/sales';
 import Header from '../components/shared/Header';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -272,7 +272,7 @@ const Checkout = () => {
  */
 async function notifyAdminWhatsApp(orderData) {
   try {
-    const { getSettings } = await import('../firebase/products');
+    const { getSettings } = await import('../services/config');
     const settings = await getSettings();
     const adminNumber = settings?.whatsappNumber;
     if (!adminNumber) return;

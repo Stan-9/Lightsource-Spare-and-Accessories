@@ -3,26 +3,30 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
+/**
+ * All Firebase credentials MUST be supplied via environment variables.
+ * Copy .env.example → .env and fill in your project values.
+ * Never commit real API keys to source control.
+ */
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBYzC2sijes-eWHXgyU2f0MPFMZ4o6_Q5s",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "lightsource-894e9.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "lightsource-894e9",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "lightsource-894e9.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "142379699375",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:142379699375:web:c0b47c2eba1d9e1552185a"
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Debug Log (Safe to show in production for debugging)
-console.log("Firebase initialized for project:", import.meta.env.VITE_FIREBASE_PROJECT_ID || "MISSING");
-
 if (!firebaseConfig.apiKey) {
-  console.error("CRITICAL ERROR: VITE_FIREBASE_API_KEY is missing!");
+  // Surface a clear error during development if .env is missing.
+  console.error(
+    '[Firebase] CRITICAL: VITE_FIREBASE_API_KEY is not set. ' +
+    'Copy .env.example → .env and add your project credentials.'
+  );
 }
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Services
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+export const db      = getFirestore(app);
+export const auth    = getAuth(app);
 export const storage = getStorage(app);

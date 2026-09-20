@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { CartProvider } from './context/CartContext';
+import { SettingsProvider } from './context/SettingsContext';
 import StoreFront from './pages/StoreFront';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
@@ -42,7 +43,6 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) return <Spinner />;
 
-  // Must be logged in AND be the designated admin email
   if (!user) return <Navigate to="/admin/login" replace />;
   if (ADMIN_EMAIL && user.email !== ADMIN_EMAIL) {
     auth.signOut();
@@ -51,53 +51,53 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-
-
 function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <CartProvider>
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              style: { background: '#33334d', color: '#fff' },
-              success: { iconTheme: { primary: '#FF6B00', secondary: '#fff' } },
-            }}
-          />
-          <Routes>
-            <Route path="/" element={<StoreFront />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/catalog/:category" element={<Catalog />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/brands" element={<Brands />} />
-            <Route path="/brand/:brand" element={<Brands />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/resources/installation-guides" element={<Resources />} />
-            <Route path="/resources/maintenance-tips" element={<Resources />} />
-            <Route path="/resources/customer-showcase" element={<Resources />} />
-            <Route path="/sitemap" element={<Sitemap />} />
-            <Route path="/business" element={<Business />} />
-            <Route path="/checkout" element={<Checkout />} />
-
-            {/* Admin routes */}
-            <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route
-              path="/admin/dashboard"
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
+        <SettingsProvider>
+          <CartProvider>
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                style: { background: '#33334d', color: '#fff' },
+                success: { iconTheme: { primary: '#FF6B00', secondary: '#fff' } },
+              }}
             />
+            <Routes>
+              <Route path="/" element={<StoreFront />} />
+              <Route path="/catalog" element={<Catalog />} />
+              <Route path="/catalog/:category" element={<Catalog />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/brands" element={<Brands />} />
+              <Route path="/brand/:brand" element={<Brands />} />
+              <Route path="/resources" element={<Resources />} />
+              <Route path="/resources/installation-guides" element={<Resources />} />
+              <Route path="/resources/maintenance-tips" element={<Resources />} />
+              <Route path="/resources/customer-showcase" element={<Resources />} />
+              <Route path="/sitemap" element={<Sitemap />} />
+              <Route path="/business" element={<Business />} />
+              <Route path="/checkout" element={<Checkout />} />
 
-            {/* 404 Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </CartProvider>
+              {/* Admin routes */}
+              <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 404 Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </CartProvider>
+        </SettingsProvider>
       </Router>
-    <Footer />
+      <Footer />
     </ErrorBoundary>
   );
 }

@@ -2,18 +2,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Products: anyone can read, authenticated users can create/update/delete
+    // Products: public read (storefront), authenticated write (admin only).
     match /products/{id} {
       allow read: if true;
       allow create, update, delete: if request.auth != null;
     }
 
-    // Orders: authenticated users can create and manage
+    // Orders:
+    //   - Anyone can CREATE (unauthenticated online checkout submits orders).
+    //   - Only authenticated admins can READ, UPDATE, or DELETE.
     match /orders/{id} {
-      allow read, create, update, delete: if request.auth != null;
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
     }
 
-    // Settings: anyone can read, authenticated users can write
+    // Settings: public read (storefront fetches shop name / WhatsApp number),
+    //           authenticated write (admin panel only).
     match /settings/{id} {
       allow read: if true;
       allow write: if request.auth != null;

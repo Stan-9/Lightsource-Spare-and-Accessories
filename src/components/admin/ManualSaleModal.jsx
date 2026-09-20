@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Package, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { processManualSale } from '../../firebase/products';
+import { processManualSale } from '../../services/sales';
 
 const ManualSaleModal = ({ isOpen, onClose, products }) => {
   const [searchQuery, setSearchQuery] = useState('');

@@ -1,14 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
-import { normalizeOrder, getOrderStatus } from './sales';
+
+vi.mock('../firebase/config', () => ({
+  db: {},
+  auth: {},
+  storage: {},
+}));
 
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
     runTransaction: vi.fn(),
+    collection: vi.fn((db, name) => ({ path: name })),
     doc: vi.fn((db, collectionName, id) => ({ path: `${collectionName}/${id}` })),
   };
 });
+
+import { normalizeOrder, getOrderStatus } from './sales';
 
 describe('Order Workflow & Schema Tests', () => {
   describe('Legacy Document Migration Mapping', () => {

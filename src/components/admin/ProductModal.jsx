@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, Save } from 'lucide-react';
-import { addProduct, updateProduct } from '../../firebase/products';
+import { addProduct, updateProduct } from '../../services/inventory';
 import toast from 'react-hot-toast';
 
 const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {

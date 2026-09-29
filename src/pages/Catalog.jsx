@@ -7,6 +7,7 @@ import { useProducts } from '../hooks/useProducts';
 import { useSettings } from '../context/SettingsContext';
 import { Search, Plus, Settings, ChevronRight, Home } from 'lucide-react';
 import { updateSEO } from '../services/seo';
+import { isProductSellable } from '../services/procurement/procurementUtils';
 
 const Catalog = () => {
   const { category: routeCategory } = useParams();
@@ -33,8 +34,7 @@ const Catalog = () => {
       const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchCategory = activeCategory === 'All' || p.category === activeCategory;
-      const isVisible = p.isVisible !== false;
-      return matchSearch && matchCategory && isVisible;
+      return matchSearch && matchCategory && isProductSellable(p);
     });
   }, [products, searchQuery, activeCategory]);
 

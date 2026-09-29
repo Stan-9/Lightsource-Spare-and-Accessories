@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   TrendingDown,
   TrendingUp,
+  Truck,
 } from 'lucide-react';
 
 import { auth } from '../firebase/config';
@@ -42,6 +43,7 @@ import OrdersTab from './admin-tabs/OrdersTab';
 import AnalysisTab from './admin-tabs/AnalysisTab';
 import CreditorsTab from './admin-tabs/CreditorsTab';
 import SettingsTab from './admin-tabs/SettingsTab';
+import ProcurementTab from './admin-tabs/ProcurementTab';
 
 const NavButton = ({ id, icon: Icon, label, badge = null, activeTab, setActiveTab }) => (
   <button
@@ -481,6 +483,7 @@ const AdminDashboard = () => {
             <NavButton id="overview" icon={LayoutDashboard} label="Overview" activeTab={activeTab} setActiveTab={setActiveTab} />
             <NavButton id="products" icon={Package} label="Inventory" activeTab={activeTab} setActiveTab={setActiveTab} />
             <NavButton id="orders" icon={ShoppingCart} label="Orders" badge={orders.length} activeTab={activeTab} setActiveTab={setActiveTab} />
+            <NavButton id="procurement" icon={Truck} label="Procurement" activeTab={activeTab} setActiveTab={setActiveTab} />
             <NavButton id="analysis" icon={TrendingUp} label="Analysis" activeTab={activeTab} setActiveTab={setActiveTab} />
             <NavButton id="creditors" icon={TrendingDown} label="Creditors" badge={activeCreditorOrders.length > 0 ? activeCreditorOrders.length : null} activeTab={activeTab} setActiveTab={setActiveTab} />
             <NavButton id="settings" icon={SettingsIcon} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -563,6 +566,10 @@ const AdminDashboard = () => {
             handleRecordPartialPayment={handleRecordPartialPayment}
             handleUpdateOrderPayment={handleUpdateOrderPayment}
           />
+        )}
+
+        {activeTab === 'procurement' && (
+          <ProcurementTab products={products} />
         )}
 
         {activeTab === 'settings' && (

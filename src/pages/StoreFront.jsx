@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext';
 import { useProducts } from '../hooks/useProducts';
 import { useSettings } from '../context/SettingsContext';
 import { Search, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { isProductSellable } from '../services/procurement/procurementUtils';
 
 const ProductCard = ({ product, index, cartItems, addToCart }) => {
   const isOutOfStock = product.stock <= 0;
@@ -137,8 +138,7 @@ const StoreFront = () => {
       const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchCategory = activeCategory === 'All' || p.category === activeCategory;
-      const isVisible = p.isVisible !== false;
-      return matchSearch && matchCategory && isVisible;
+      return matchSearch && matchCategory && isProductSellable(p);
     });
   }, [products, searchQuery, activeCategory]);
 

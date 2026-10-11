@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Truck, Plus, Phone, Mail, MapPin, X } from 'lucide-react';
+import { Users, Truck, Plus, Phone, MapPin, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addSupplier, updateSupplier, addCarrier, updateCarrier } from '../../../services/procurement/procurementService';
 
@@ -15,7 +15,6 @@ const SuppliersCarriersView = ({
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supName, setSupName] = useState('');
   const [supPhone, setSupPhone] = useState('');
-  const [supEmail, setSupEmail] = useState('');
   const [supLocation, setSupLocation] = useState('');
 
   // Carrier modal
@@ -33,7 +32,6 @@ const SuppliersCarriersView = ({
       const res = await addSupplier({
         name: supName,
         phone: supPhone,
-        email: supEmail,
         location: supLocation,
       });
       if (res && res.success) {
@@ -41,6 +39,7 @@ const SuppliersCarriersView = ({
         setIsSupplierModalOpen(false);
         setSupName('');
         setSupPhone('');
+        setSupLocation('');
       } else {
         toast.error(res?.error || 'Failed to add supplier');
       }
@@ -134,7 +133,6 @@ const SuppliersCarriersView = ({
                   <h4 className="font-bold text-white text-base">{s.name}</h4>
                   <div className="space-y-1.5 text-gray-400">
                     {s.phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-accentOrange" /> {s.phone}</p>}
-                    {s.email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-blue-400" /> {s.email}</p>}
                     {s.location && <p className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-green-400" /> {s.location}</p>}
                   </div>
                   <div className="pt-3 border-t border-gray-800 flex justify-between items-center">
@@ -204,17 +202,6 @@ const SuppliersCarriersView = ({
                   placeholder="+86..."
                   value={supPhone}
                   onChange={e => setSupPhone(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl p-2.5 text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 font-bold mb-1">Email</label>
-                <input
-                  type="email"
-                  placeholder="contact@supplier.com"
-                  value={supEmail}
-                  onChange={e => setSupEmail(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl p-2.5 text-white"
                 />
               </div>

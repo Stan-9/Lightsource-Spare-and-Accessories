@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   serverTimestamp,
   query,
@@ -261,6 +262,83 @@ export const cancelPurchaseOrder = async (poId, cancelReason = '') => {
     return result(true);
   } catch (error) {
     console.error('Error cancelling purchase order:', error);
+    return result(false, null, error.message);
+  }
+};
+
+/**
+ * Updates a PO's lines (add new lines and/or delete existing lines).
+ * Only allowed when PO has not been fully received.
+ * @param {string} poId
+ * @param {Array}  linesToAdd   - [{productId, productName, qtyOrdered, unitCost, pendingProduct?}]
+ * @param {Array}  lineIdsToRemove - [lineId, ...] — must not have any qtyReceived > 0
+ */
+export const updatePurchaseOrderLines = async (poId, linesToAdd = [], lineIdsToRemove = []) => {
+  try {
+    await runTransaction(db, async (transaction) => {
+      const poRef = doc(db, 'purchaseOrders', poId);
+      const poDoc = await transaction.get(poRef);
+      if (!poDoc.exists()) throw new Error('PO not found');
+
+      // Read all lines for this PO to recompute totalCost
+      // We can't query inside transactions in Firestore SDK v9+, so we recompute
+      // from the lines we know about. We fetch affected lines individually.
+
+      // Remove lines
+      for (const lineId of lineIdsToRemove) {
+        const lineRef = doc(db, 'purchaseLines', lineId);
+        const lineDoc = await transaction.get(lineRef);
+        if (lineDoc.exists() && Number(lineDoc.data().qtyReceived || 0) > 0) {
+          throw new Error(`Cannot remove line for "${lineDoc.data().productId}" — goods already received.`);
+        }
+        transaction.delete(lineRef);
+      }
+
+      // Add new lines
+      const poData = poDoc.data();
+      for (const line of linesToAdd) {
+        const lineRef = doc(purchaseLinesColl);
+        transaction.set(lineRef, {
+          poId,
+          supplierId: poData.supplierId,
+          productId: line.productId || null,
+          pendingProduct: line.pendingProduct || null,
+          qtyOrdered: Number(line.qtyOrdered),
+          qtyCancelled: 0,
+          qtyReceived: 0,
+          unitCost: Number(line.unitCost),
+          unitCostKES: Number(line.unitCost) * Number(poData.fxRateToKES || 1),
+          shipmentId: null,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      // Update PO updatedAt (totalCost will be recomputed on next read if needed)
+      transaction.update(poRef, { updatedAt: serverTimestamp() });
+    });
+    return result(true);
+  } catch (error) {
+    console.error('Error updating PO lines:', error);
+    return result(false, null, error.message);
+  }
+};
+
+/**
+ * Updates the totalCost on a PO document to match its current lines.
+ * Call this after adding/removing lines via updatePurchaseOrderLines.
+ */
+export const recomputePoTotalCost = async (poId, currentLines) => {
+  try {
+    const totalCost = currentLines.reduce(
+      (sum, l) => sum + (Number(l.qtyOrdered) * Number(l.unitCost)), 0
+    );
+    await updateDoc(doc(db, 'purchaseOrders', poId), {
+      totalCost,
+      updatedAt: serverTimestamp(),
+    });
+    return result(true);
+  } catch (error) {
+    console.error('Error recomputing PO total cost:', error);
     return result(false, null, error.message);
   }
 };
